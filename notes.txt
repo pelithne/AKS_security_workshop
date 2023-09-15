@@ -1,6 +1,6 @@
 # Create the resource group for the virtual networks
 az group create --name rg_baseline --location westeurope
- 
+
 # Create the hub virtual network with two subnets
 az network vnet create \
     --resource-group rg_baseline  \
@@ -8,13 +8,13 @@ az network vnet create \
     --address-prefixes 10.0.0.0/16 \
     --subnet-name bastion-subnet \
     --subnet-prefixes 10.0.1.0/24
- 
+
 az network vnet subnet create \
     --resource-group rg_baseline  \
     --vnet-name hub-vnet \
-    --name azure-firewall-subnet \
+    --name AzureFirewallSubnet \
     --address-prefixes 10.0.2.0/24
- 
+
 # Create the spoke virtual network with one subnet for AKS
 az network vnet create \
     --resource-group rg_baseline  \
@@ -22,7 +22,7 @@ az network vnet create \
     --address-prefixes 10.1.0.0/16 \
     --subnet-name aks-subnet \
     --subnet-prefixes 10.1.1.0/24
- 
+
 # Create a peering connection between the hub and spoke virtual networks
 az network vnet peering create \
     --resource-group rg_baseline  \
@@ -30,7 +30,7 @@ az network vnet peering create \
     --vnet-name hub-vnet \
     --remote-vnet spoke-vnet \
     --allow-vnet-access
- 
+
 # Create a peering connection between the spoke and hub virtual networks
 az network vnet peering create \
     --resource-group rg_baseline  \
@@ -38,19 +38,19 @@ az network vnet peering create \
     --vnet-name spoke-vnet \
     --remote-vnet hub-vnet \
     --allow-vnet-access
- 
+
 # Create a public IP address for the bastion host
 az network public-ip create \
     --resource-group rg_baseline  \
     --name bastion-pip \
     --sku Standard \
     --allocation-method Static
- 
+
 # Create a network security group for the bastion subnet
 az network nsg create \
     --resource-group rg_baseline  \
     --name bastion-nsg
- 
+
 # Create a network security group rule to allow SSH traffic to the bastion subnet
 az network nsg rule create \
     --resource-group rg_baseline  \
@@ -64,19 +64,41 @@ az network nsg rule create \
     --destination-port-ranges 22 \
     --access Allow \
     --priority 100
- 
+
+# Get
+
 # Create an Azure Firewall in the azure-firewall-subnet
 az network firewall create \
-    --resource-group rg_baseline  \
+    --resource-group rg_baseline \
     --name azure-firewall \
     --location westeurope \
+    --vnet-name hub-vnet \
 
- 
+az network public-ip create \
+    --name fw-pip \
+    --resource-group rg_baseline \
+    --location westeurope \
+    --allocation-method static \
+    --sku standard
+
+az network firewall ip-config create \
+    --firewall-name azure-firewall \
+    --name FW-config \
+    --public-ip-address fw-pip \
+    --resource-group rg_baseline \
+    --vnet-name hub-vnet
+
+az network firewall update \
+    --name azure-firewall \
+    --resource-group rg_baseline 
+
 # Create a route table for the spoke virtual network
 az network route-table create \
     --resource-group rg_baseline  \
     --name spoke-rt
- 
+
+
+
 # Create a route to the internet via the Azure Firewall
 az network route-table route create \
     --resource-group rg_baseline  \
@@ -84,8 +106,8 @@ az network route-table route create \
     --route-table-name spoke-rt \
     --address-prefix 0.0.0.0/0 \
     --next-hop-type VirtualAppliance \
-    --next-hop-ip-address <azure-firewall-private-ip>
- 
+    --next-hop-ip-address 10.0.2.4
+
 # Associate the route table with the aks-subnet
 az network vnet subnet update \
     --resource-group rg_baseline  \
