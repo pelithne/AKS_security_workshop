@@ -29,6 +29,12 @@ az network vnet create \
     --subnet-name aks-subnet \
     --subnet-prefixes 10.1.1.0/24
 
+az network vnet subnet create \
+    --resource-group rg_baseline  \
+    --vnet-name spoke-vnet  \
+    --name endpoints-subnet \
+    --address-prefixes 10.1.2.0/24
+
 # Create a peering connection between the hub and spoke virtual networks
 az network vnet peering create \
     --resource-group rg_baseline  \
