@@ -114,6 +114,9 @@ az network bastion create \
     --vnet-name hub-vnet \
     --location westeurope
 
+# Connect to VM using the portal:
+https://learn.microsoft.com/en-us/azure/bastion/create-host-cli#steps
+
 # Create an Azure Firewall in the azure-firewall-subnet
 az network firewall create \
     --resource-group rg_baseline \
