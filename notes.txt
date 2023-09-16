@@ -15,6 +15,12 @@ az network vnet subnet create \
     --name AzureFirewallSubnet \
     --address-prefixes 10.0.2.0/24
 
+az network vnet subnet create \
+    --resource-group rg_baseline  \
+    --vnet-name hub-vnet \
+    --name JumpBoxSubnet \
+    --address-prefixes 10.0.3.0/24
+
 # Create the spoke virtual network with one subnet for AKS
 az network vnet create \
     --resource-group rg_baseline  \
