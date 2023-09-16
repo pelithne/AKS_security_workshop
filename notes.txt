@@ -105,6 +105,15 @@ az network nic ip-config create \
     --private-ip-address 10.0.3.4 \
     --public-ip-address "" \
 
+# Create the bastion host in hub vnet
+
+az network bastion create \
+    --resource-group rg_baseline \
+    --name bastionhost \
+    --public-ip-address bastion-pip \
+    --vnet-name hub-vnet \
+    --location westeurope
+
 # Create an Azure Firewall in the azure-firewall-subnet
 az network firewall create \
     --resource-group rg_baseline \
