@@ -71,6 +71,39 @@ az network nsg rule create \
     --access Allow \
     --priority 100
 
+# Create JumpBox host
+
+az vm create \
+    --resource-group rg_baseline \
+    --name jumpbox-win \
+    --image Win2019Datacenter \
+    --admin-username azureuser \
+    --admin-password Ericsson_2055 \
+    --vnet-name hub-vnet \
+    --subnet JumpBoxSubnet \
+    --size Standard_B2s \
+    --storage-sku Standard_LRS \
+    --os-disk-name jumpbox-win-osdisk \
+    --os-disk-size-gb 128 \
+    --nsg jumpbox-nsg \
+    --public-ip-address "" \
+  
+
+az network nic create \
+    --resource-group rg_baseline \
+    --name jumpbox-win-nic \
+    --vnet-name hub-vnet \
+    --subnet JumpBoxSubnet \
+    --network-security-group jumpbox-nsg \
+    --accelerated-networking true \
+ 
+
+az network nic ip-config create \
+    --resource-group rg_baseline \
+    --nic-name jumpbox-win-nic \
+    --name ipconfig1 \
+    --private-ip-address 10.0.3.4 \
+    --public-ip-address "" \
 
 # Create an Azure Firewall in the azure-firewall-subnet
 az network firewall create \
