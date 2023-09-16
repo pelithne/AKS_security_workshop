@@ -65,7 +65,6 @@ az network nsg rule create \
     --access Allow \
     --priority 100
 
-# Get
 
 # Create an Azure Firewall in the azure-firewall-subnet
 az network firewall create \
@@ -73,6 +72,7 @@ az network firewall create \
     --name azure-firewall \
     --location westeurope \
     --vnet-name hub-vnet \
+    --enable-dns-proxy true
 
 az network public-ip create \
     --name fw-pip \
@@ -91,6 +91,15 @@ az network firewall ip-config create \
 az network firewall update \
     --name azure-firewall \
     --resource-group rg_baseline 
+
+# Create Azure firewall network rules    
+az network firewall network-rule create -g rg_baseline -f azure-firewall --collection-name 'aksfwnr' -n 'apiudp' --protocols 'UDP' --source-addresses '*' --destination-addresses "AzureCloud.$LOC" --destination-ports 1194 --action allow --priority 100
+az network firewall network-rule create -g rg_baseline -f azure-firewall --collection-name 'aksfwnr' -n 'apitcp' --protocols 'TCP' --source-addresses '*' --destination-addresses "AzureCloud.$LOC" --destination-ports 9000
+az network firewall network-rule create -g rg_baseline -f azure-firewall --collection-name 'aksfwnr' -n 'time' --protocols 'UDP' --source-addresses '*' --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123
+
+# Create Azure firewall application rules
+az network firewall application-rule create -g rg_baseline -f azure-firewall --collection-name 'aksfwar' -n 'fqdn' --source-addresses '*' --protocols 'http=80' 'https=443' --fqdn-tags "AzureKubernetesService" --action allow --priority 100
+
 
 # Create a route table for the spoke virtual network
 az network route-table create \
@@ -115,11 +124,30 @@ az network vnet subnet update \
     --name aks-subnet \
     --route-table spoke-rt
  
+# Create a user-assigned managed identity
+az identity create \
+    --resource-group rg_baseline \
+    --name abui
+
+# Get the id of the user managed identity
+identity_id=$(az identity show \
+    --resource-group rg_baseline \
+    --name abui \
+    --query id \
+    --output tsv)
+
+# Get the principal id of the user managed identity
+principal_id=$(az identity show \
+    --resource-group rg_baseline \
+    --name abui \
+    --query principalId \
+    --output tsv)
+
+# Assign permissions for the user managed identity to the routing table
+az role assignment create \
+    --assignee $principal_id \
+    --scope /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/rg_baseline/providers/Microsoft.Network/routeTables/spoke-rt \
+    --role "Network Contributor"
+
 # Create the AKS cluster in the aks-subnet
-az aks create \
-    --resource-group rg_baseline  \
-    --name aks-cluster \
-    --node-count 1 \
-    --network-plugin azure \
-    --vnet-subnet-id <aks-subnet-id> \
-    --generate-ssh-keys
+az aks create --resource-group rg_baseline --node-count 3 --vnet-subnet-id /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/rg_baseline/providers/Microsoft.Network/virtualNetworks/spoke-vnet/subnets/aks-subnet  --enable-aad --enable-azure-rbac --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
