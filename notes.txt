@@ -214,3 +214,111 @@ az aks create --resource-group rg_baseline --node-count 3 --vnet-subnet-id /subs
 DNS_ZONE_NAME=$(az network private-dns zone list --resource-group $NODE_GROUP --query "[0].name" -o tsv)
 HUB_VNET_ID=$(az network vnet show -g rg_baseline -n hub-vnet --query id --output tsv)
 az network private-dns link vnet create --name "hubnetdnsconfig" --registration-enabled false --resource-group $NODE_GROUP --virtual-network $HUB_VNET_ID --zone-name $DNS_ZONE_NAME 
+
+# create ACR 
+az acr create \
+    --resource-group rg_baseline \
+    --name acraksbl \
+    --sku Premium \
+    --admin-enabled false \
+    --location westeurope \
+	--allow-trusted-services
+
+
+# Disable network policies in subnet
+az network vnet subnet update \
+ --name endpoints-subnet \
+ --vnet-name spoke-vnet\
+ --resource-group rg_baseline \
+ --disable-private-endpoint-network-policies
+ 
+#Configure the private DNS zone
+az network private-dns zone create \
+  --resource-group rg_baseline \
+  --name "privatelink.azurecr.io"
+
+# Create a virtual network association link
+ az network private-dns link vnet create \
+  --resource-group rg_baseline \
+  --zone-name "privatelink.azurecr.io" \
+  --name ACRDNSSpokeLink \
+  --virtual-network spoke-vnet \
+  --registration-enabled false
+ 
+  az network private-dns link vnet create \
+  --resource-group rg_baseline \
+  --zone-name "privatelink.azurecr.io" \
+  --name ACRDNSHubLink \
+  --virtual-network hub-vnet \
+  --registration-enabled false
+
+# Create a private registry endpoint 
+REGISTRY_ID=$(az acr show --name acraksbl \
+  --query 'id' --output tsv)
+
+az network private-endpoint create \
+    --name ACRPrivateEndpoint \
+    --resource-group rg_baseline \
+    --vnet-name spoke-vnet \
+    --subnet endpoints-subnet \
+    --private-connection-resource-id $REGISTRY_ID \
+    --group-ids registry \
+    --connection-name PrivateACRConnection
+
+
+## Configure DNS record 
+
+# get endpoint IP configuration
+NETWORK_INTERFACE_ID=$(az network private-endpoint show \
+  --name ACRPrivateEndpoint \
+  --resource-group rg_baseline \
+  --query 'networkInterfaces[0].id' \
+  --output tsv)
+
+# fetch the container registry private IP address
+REGISTRY_PRIVATE_IP=$(az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry'].privateIPAddress" -o tsv)
+
+# fetch the data endpoint IP address of the container registry
+
+DATA_ENDPOINT_PRIVATE_IP=$(az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry_data_westeurope'].privateIPAddress" -o tsv)
+
+# fetch the FQDN associated with the registry and data endpoint
+
+REGISTRY_FQDN=$(az network nic show \
+  --ids $NETWORK_INTERFACE_ID \
+  --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry'].privateLinkConnectionProperties.fqdns" \
+  --output tsv)
+
+DATA_ENDPOINT_FQDN=$(az network nic show \
+  --ids $NETWORK_INTERFACE_ID \
+  --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry_data_westeurope'].privateLinkConnectionProperties.fqdns" \
+  --output tsv)
+
+#Create DNS records in the private zone
+
+az network private-dns record-set a create \
+  --name acraksbl \
+  --zone-name privatelink.azurecr.io \
+  --resource-group rg_baseline
+
+# Specify registry region in data endpoint name
+az network private-dns record-set a create \
+  --name acraksbl.westeurope.data \
+  --zone-name privatelink.azurecr.io \
+  --resource-group rg_baseline
+  
+# create the A records for the registry endpoint and data endpoint
+
+az network private-dns record-set a add-record \
+  --record-set-name acraksbl \
+  --zone-name privatelink.azurecr.io \
+  --resource-group rg_baseline \
+  --ipv4-address $REGISTRY_PRIVATE_IP
+
+# Specify registry region in data endpoint name
+az network private-dns record-set a add-record \
+  --record-set-name acraksbl.westeurope.data \
+  --zone-name privatelink.azurecr.io \
+  --resource-group rg_baseline \
+  --ipv4-address $DATA_ENDPOINT_PRIVATE_IP
+  
