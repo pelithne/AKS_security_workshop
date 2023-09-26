@@ -222,7 +222,8 @@ az acr create \
     --sku Premium \
     --admin-enabled false \
     --location westeurope \
-	--allow-trusted-services
+    --allow-trusted-services false
+    --public-network-enabled false
 
 
 # Disable network policies in subnet
