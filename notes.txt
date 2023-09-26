@@ -212,6 +212,46 @@ az role assignment create \
     --scope /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/rg_baseline/providers/Microsoft.Network/routeTables/spoke-rt \
     --role "Network Contributor"
 
+# Create a custom role, with least privilage access for AKS load balancer subnet
+touch aks-net-contributor.json
+add the following information to the json file.
+
+{
+    "properties": {
+        "roleName": "aks-net-contributor",
+        "description": "least privilige access",
+        "assignableScopes": [
+            "/subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/rg_baseline/providers/Microsoft.Network/virtualNetworks/spoke-vnet/subnets/loadbalancer-subnet"
+        ],
+        "permissions": [
+            {
+                "actions": [
+                    "Microsoft.Network/loadBalancers/read",
+                    "Microsoft.Network/loadBalancers/write",
+                    "Microsoft.Network/networkSecurityGroups/join/action",
+                    "Microsoft.Network/loadBalancers/delete",
+                    "Microsoft.Network/virtualNetworks/subnets/read",
+                    "Microsoft.Network/virtualNetworks/subnets/write",
+                    "Microsoft.Network/virtualNetworks/subnets/join/action"
+                ],
+                "notActions": [],
+                "dataActions": [],
+                "notDataActions": []
+            }
+        ]
+    }
+}
+
+create a role
+az role definition create --role-definition ./aks-net-contributor.json
+
+assign the custom role to the user assigned managed identity, first identify the service principal ID
+
+principalId=$(az identity show --name abui --resource-group rg_baseline --query principalId --output tsv)
+
+az role assignment create --assignee $principalId --role "aks-net-contributor"
+
+
 # Create the AKS cluster in the aks-subnet
 az aks create --resource-group rg_baseline --node-count 3 --vnet-subnet-id /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/rg_baseline/providers/Microsoft.Network/virtualNetworks/spoke-vnet/subnets/aks-subnet  --enable-aad --enable-azure-rbac --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
 
