@@ -41,6 +41,12 @@ az network vnet subnet create \
     --name loadbalancer-subnet \
     --address-prefixes 10.1.3.0/24
 
+az network vnet subnet create \
+    --resource-group rg_baseline  \
+    --vnet-name spoke-vnet \
+    --name app-gw-subnet \
+    --address-prefixes 10.1.4.0/24
+
 # Create a peering connection between the hub and spoke virtual networks
 az network vnet peering create \
     --resource-group rg_baseline  \
