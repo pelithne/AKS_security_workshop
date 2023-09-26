@@ -212,5 +212,5 @@ az aks create --resource-group rg_baseline --node-count 3 --vnet-subnet-id /subs
 # Link the the hub network to the private DNS zone. 
 
 DNS_ZONE_NAME=$(az network private-dns zone list --resource-group $NODE_GROUP --query "[0].name" -o tsv)
-HUB_VNET_ID=$(az network vnet show -g rg_baseline -n hub-vnet
+HUB_VNET_ID=$(az network vnet show -g rg_baseline -n hub-vnet --query id --output tsv)
 az network private-dns link vnet create --name "hubnetdnsconfig" --registration-enabled false --resource-group $NODE_GROUP --virtual-network $HUB_VNET_ID --zone-name $DNS_ZONE_NAME 
