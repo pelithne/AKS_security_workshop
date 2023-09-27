@@ -379,3 +379,25 @@ az network private-dns record-set a add-record \
 
 # Create public IP address with a domain name associated to the PIP resource
 az network public-ip create -g rg_baseline -n AGPublicIPAddress --dns-name mvcnstudent01 --allocation-method Static --sku Standard --location westeurope
+
+# Create WAF policy 
+az network application-gateway waf-policy create --name ApplicationGatewayWAFPolicy --resource-group rg_baseline
+
+# Create application Gateway 
+
+  az network application-gateway create \
+  --name AppGateway \
+  --location westeurope \
+  --resource-group rg_baseline \
+  --vnet-name spoke-vnet \
+  --subnet app-gw-subnet \
+  --capacity 1 \
+  --sku WAF_v2 \
+  --http-settings-cookie-based-affinity Disabled \
+  --frontend-port 443 \
+  --http-settings-port 80 \
+  --http-settings-protocol Http \
+  --priority "1" \
+  --public-ip-address AGPublicIPAddress \
+  --cert-file appgwcert.pfx \
+  --waf-policy ApplicationGatewayWAFPolicy
