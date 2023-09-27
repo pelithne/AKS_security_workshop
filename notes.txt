@@ -374,4 +374,8 @@ az network private-dns record-set a add-record \
   --zone-name privatelink.azurecr.io \
   --resource-group rg_baseline \
   --ipv4-address $DATA_ENDPOINT_PRIVATE_IP
-  
+
+## Create Application Gateway
+
+# Create public IP address with a domain name associated to the PIP resource
+az network public-ip create -g rg_baseline -n AGPublicIPAddress --dns-name mvcnstudent01 --allocation-method Static --sku Standard --location westeurope
