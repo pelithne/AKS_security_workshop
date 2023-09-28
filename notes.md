@@ -1,18 +1,25 @@
 ## Create the resource group for the virtual networks
 
+````
+RG=$RG
+````
 
 ````
-az group create --name rg_baseline --location westeurope
+az group create --name $RG --location westeurope
 ````
 
 ## Create the hub virtual network with two subnets
 
+````
+HUB_VNET_PREFIX=10.0.0.0/16
+HUB_VNET_NAME=hub-vnet
+````
 
 ````
 az network vnet create \
-    --resource-group rg_baseline  \
-    --name hub-vnet \
-    --address-prefixes 10.0.0.0/16 \
+    --resource-group $RG  \
+    --name $HUB_VNET_NAME \
+    --address-prefixes $HUB_VNET_PREFIX \
     --subnet-name AzureBastionSubnet \
     --subnet-prefixes 10.0.1.0/24
 
@@ -20,8 +27,8 @@ az network vnet create \
 
 ````
 az network vnet subnet create \
-    --resource-group rg_baseline  \
-    --vnet-name hub-vnet \
+    --resource-group $RG  \
+    --vnet-name $HUB_VNET_NAME \
     --name AzureFirewallSubnet \
     --address-prefixes 10.0.2.0/24
 
@@ -29,8 +36,8 @@ az network vnet subnet create \
 
 ````
 az network vnet subnet create \
-    --resource-group rg_baseline  \
-    --vnet-name hub-vnet \
+    --resource-group $RG  \
+    --vnet-name $HUB_VNET_NAME \
     --name JumpBoxSubnet \
     --address-prefixes 10.0.3.0/24
 
@@ -38,12 +45,16 @@ az network vnet subnet create \
 
 ## Create the spoke virtual network with one subnet for AKS
 
+````
+SPOKE_VNET_PREFIX=10.1.0.0/16
+SPOKE_VNET_NAME=spoke-vnet
+````
 
 ````
 az network vnet create \
-    --resource-group rg_baseline  \
-    --name spoke-vnet \
-    --address-prefixes 10.1.0.0/16 \
+    --resource-group $RG  \
+    --name $SPOKE_VNET_NAME \
+    --address-prefixes $SPOKE_VNET_PREFIX \
     --subnet-name aks-subnet \
     --subnet-prefixes 10.1.1.0/24
 
@@ -51,8 +62,8 @@ az network vnet create \
 
 ````
 az network vnet subnet create \
-    --resource-group rg_baseline  \
-    --vnet-name spoke-vnet  \
+    --resource-group $RG  \
+    --vnet-name $SPOKE_VNET_NAME  \
     --name endpoints-subnet \
     --address-prefixes 10.1.2.0/24
 
@@ -60,8 +71,8 @@ az network vnet subnet create \
 
 ````
 az network vnet subnet create \
-    --resource-group rg_baseline  \
-    --vnet-name spoke-vnet \
+    --resource-group $RG  \
+    --vnet-name $SPOKE_VNET_NAME \
     --name loadbalancer-subnet \
     --address-prefixes 10.1.3.0/24
 
@@ -69,8 +80,8 @@ az network vnet subnet create \
 
 ````
 az network vnet subnet create \
-    --resource-group rg_baseline  \
-    --vnet-name spoke-vnet \
+    --resource-group $RG  \
+    --vnet-name $SPOKE_VNET_NAME \
     --name app-gw-subnet \
     --address-prefixes 10.1.4.0/24
 
@@ -81,10 +92,10 @@ az network vnet subnet create \
 
 ````
 az network vnet peering create \
-    --resource-group rg_baseline  \
+    --resource-group $RG  \
     --name hub-to-spoke \
-    --vnet-name hub-vnet \
-    --remote-vnet spoke-vnet \
+    --vnet-name $HUB_VNET_NAME \
+    --remote-vnet $SPOKE_VNET_NAME \
     --allow-vnet-access
 
 ````
@@ -94,10 +105,10 @@ az network vnet peering create \
 
 ````
 az network vnet peering create \
-    --resource-group rg_baseline  \
+    --resource-group $RG  \
     --name spoke-to-hub \
-    --vnet-name spoke-vnet \
-    --remote-vnet hub-vnet \
+    --vnet-name $SPOKE_VNET_NAME \
+    --remote-vnet $HUB_VNET_NAME \
     --allow-vnet-access
 
 ````
@@ -107,7 +118,7 @@ az network vnet peering create \
 
 ````
 az network public-ip create \
-    --resource-group rg_baseline  \
+    --resource-group $RG  \
     --name bastion-pip \
     --sku Standard \
     --allocation-method Static
@@ -118,7 +129,7 @@ az network public-ip create \
 
 ````
 az network nsg create \
-    --resource-group rg_baseline  \
+    --resource-group $RG  \
     --name bastion-nsg
 ````
 
@@ -127,7 +138,7 @@ az network nsg create \
 
 ````
 az network nsg rule create \
-    --resource-group rg_baseline  \
+    --resource-group $RG  \
     --nsg-name bastion-nsg \
     --name allow-ssh \
     --protocol Tcp \
@@ -147,12 +158,12 @@ az network nsg rule create \
 
 ````
 az vm create \
-    --resource-group rg_baseline \
+    --resource-group $RG \
     --name jumpbox-win \
     --image Win2019Datacenter \
     --admin-username azureuser \
     --admin-password Ericsson_2055 \
-    --vnet-name hub-vnet \
+    --vnet-name $HUB_VNET_NAME \
     --subnet JumpBoxSubnet \
     --size Standard_B2s \
     --storage-sku Standard_LRS \
@@ -166,9 +177,9 @@ az vm create \
 
 ````
 az network nic create \
-    --resource-group rg_baseline \
+    --resource-group $RG \
     --name jumpbox-win-nic \
-    --vnet-name hub-vnet \
+    --vnet-name $HUB_VNET_NAME \
     --subnet JumpBoxSubnet \
     --network-security-group jumpbox-nsg \
     --accelerated-networking true \
@@ -178,7 +189,7 @@ az network nic create \
 
 ````
 az network nic ip-config create \
-    --resource-group rg_baseline \
+    --resource-group $RG \
     --nic-name jumpbox-win-nic \
     --name ipconfig1 \
     --private-ip-address 10.0.3.4 \
@@ -192,10 +203,10 @@ az network nic ip-config create \
 
 ````
 az network bastion create \
-    --resource-group rg_baseline \
+    --resource-group $RG \
     --name bastionhost \
     --public-ip-address bastion-pip \
-    --vnet-name hub-vnet \
+    --vnet-name $HUB_VNET_NAME \
     --location westeurope
 
 ````
@@ -208,10 +219,10 @@ https://learn.microsoft.com/en-us/azure/bastion/create-host-cli#steps
 
 ````
 az network firewall create \
-    --resource-group rg_baseline \
+    --resource-group $RG \
     --name azure-firewall \
     --location westeurope \
-    --vnet-name hub-vnet \
+    --vnet-name $HUB_VNET_NAME \
     --enable-dns-proxy true
 
 ````
@@ -219,7 +230,7 @@ az network firewall create \
 ````
 az network public-ip create \
     --name fw-pip \
-    --resource-group rg_baseline \
+    --resource-group $RG \
     --location westeurope \
     --allocation-method static \
     --sku standard
@@ -231,15 +242,15 @@ az network firewall ip-config create \
     --firewall-name azure-firewall \
     --name FW-config \
     --public-ip-address fw-pip \
-    --resource-group rg_baseline \
-    --vnet-name hub-vnet
+    --resource-group $RG \
+    --vnet-name $HUB_VNET_NAME
 
 ````
 
 ````
 az network firewall update \
     --name azure-firewall \
-    --resource-group rg_baseline 
+    --resource-group $RG 
 
 ````
 
@@ -247,15 +258,15 @@ az network firewall update \
 
 
 ````
-az network firewall network-rule create -g rg_baseline -f azure-firewall --collection-name 'aksfwnr' -n 'apiudp' --protocols 'UDP' --source-addresses '*' --destination-addresses "AzureCloud.$LOC" --destination-ports 1194 --action allow --priority 100
+az network firewall network-rule create -g $RG -f azure-firewall --collection-name 'aksfwnr' -n 'apiudp' --protocols 'UDP' --source-addresses '*' --destination-addresses "AzureCloud.$LOC" --destination-ports 1194 --action allow --priority 100
 ````
 
 ````
-az network firewall network-rule create -g rg_baseline -f azure-firewall --collection-name 'aksfwnr' -n 'apitcp' --protocols 'TCP' --source-addresses '*' --destination-addresses "AzureCloud.$LOC" --destination-ports 9000
+az network firewall network-rule create -g $RG -f azure-firewall --collection-name 'aksfwnr' -n 'apitcp' --protocols 'TCP' --source-addresses '*' --destination-addresses "AzureCloud.$LOC" --destination-ports 9000
 ````
 
 ````
-az network firewall network-rule create -g rg_baseline -f azure-firewall --collection-name 'aksfwnr' -n 'time' --protocols 'UDP' --source-addresses '*' --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123
+az network firewall network-rule create -g $RG -f azure-firewall --collection-name 'aksfwnr' -n 'time' --protocols 'UDP' --source-addresses '*' --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123
 
 ````
 
@@ -263,7 +274,7 @@ az network firewall network-rule create -g rg_baseline -f azure-firewall --colle
 
 
 ````
-az network firewall application-rule create -g rg_baseline -f azure-firewall --collection-name 'aksfwar' -n 'fqdn' --source-addresses '*' --protocols 'http=80' 'https=443' --fqdn-tags "AzureKubernetesService" --action allow --priority 100
+az network firewall application-rule create -g $RG -f azure-firewall --collection-name 'aksfwar' -n 'fqdn' --source-addresses '*' --protocols 'http=80' 'https=443' --fqdn-tags "AzureKubernetesService" --action allow --priority 100
 
 ````
 
@@ -272,7 +283,7 @@ az network firewall application-rule create -g rg_baseline -f azure-firewall --c
 
 ````
 az network route-table create \
-    --resource-group rg_baseline  \
+    --resource-group $RG  \
     --name spoke-rt
 
 ````
@@ -282,7 +293,7 @@ az network route-table create \
 
 ````
 az network route-table route create \
-    --resource-group rg_baseline  \
+    --resource-group $RG  \
     --name default-route \
     --route-table-name spoke-rt \
     --address-prefix 0.0.0.0/0 \
@@ -296,8 +307,8 @@ az network route-table route create \
 
 ````
 az network vnet subnet update \
-    --resource-group rg_baseline  \
-    --vnet-name spoke-vnet \
+    --resource-group $RG  \
+    --vnet-name $SPOKE_VNET_NAME \
     --name aks-subnet \
     --route-table spoke-rt
 
@@ -308,7 +319,7 @@ az network vnet subnet update \
 
 ````
 az identity create \
-    --resource-group rg_baseline \
+    --resource-group $RG \
     --name abui
 
 ````
@@ -318,7 +329,7 @@ identity_id=$(
 
 ````
 az identity show \
-    --resource-group rg_baseline \
+    --resource-group $RG \
     --name abui \
     --query id \
     --output tsv)
@@ -330,7 +341,7 @@ principal_id=$(
 
 ````
 az identity show \
-    --resource-group rg_baseline \
+    --resource-group $RG \
     --name abui \
     --query principalId \
     --output tsv)
@@ -343,7 +354,7 @@ az identity show \
 ````
 az role assignment create \
     --assignee $principal_id \
-    --scope /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/rg_baseline/providers/Microsoft.Network/routeTables/spoke-rt \
+    --scope /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/routeTables/spoke-rt \
     --role "Network Contributor"
 
 ````
@@ -361,7 +372,7 @@ add the following information to the json file.
         "roleName": "aks-net-contributor",
         "description": "least privilige access",
         "assignableScopes": [
-            "/subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/rg_baseline/providers/Microsoft.Network/virtualNetworks/spoke-vnet/subnets/loadbalancer-subnet"
+            "/subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/virtualNetworks/$SPOKE_VNET_NAME/subnets/loadbalancer-subnet"
         ],
         "permissions": [
             {
@@ -396,7 +407,7 @@ assign the custom role to the user assigned managed identity, first identify the
 principalId=$(
 
 ````
-az identity show --name abui --resource-group rg_baseline --query principalId --output tsv)
+az identity show --name abui --resource-group $RG --query principalId --output tsv)
 
 ````
 
@@ -408,7 +419,7 @@ az role assignment create --assignee $principalId --role "aks-net-contributor"
 
 
 ````
-az aks create --resource-group rg_baseline --node-count 3 --vnet-subnet-id /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/rg_baseline/providers/Microsoft.Network/virtualNetworks/spoke-vnet/subnets/aks-subnet  --enable-aad --enable-azure-rbac --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
+az aks create --resource-group $RG --node-count 3 --vnet-subnet-id /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/virtualNetworks/$SPOKE_VNET_NAME/subnets/aks-subnet  --enable-aad --enable-azure-rbac --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
 
 ````
 
@@ -422,7 +433,7 @@ HUB_VNET_ID=$(
 ````
 
 ````
-az network vnet show -g rg_baseline -n hub-vnet --query id --output tsv)
+az network vnet show -g $RG -n $HUB_VNET_NAME --query id --output tsv)
 ````
 
 ````
@@ -435,7 +446,7 @@ az network private-dns link vnet create --name "hubnetdnsconfig" --registration-
 
 ````
 az acr create \
-    --resource-group rg_baseline \
+    --resource-group $RG \
     --name acraksbl \
     --sku Premium \
     --admin-enabled false \
@@ -451,8 +462,8 @@ az acr create \
 ````
 az network vnet subnet update \
  --name endpoints-subnet \
- --vnet-name spoke-vnet\
- --resource-group rg_baseline \
+ --vnet-name $SPOKE_VNET_NAME\
+ --resource-group $RG \
  --disable-private-endpoint-network-policies
  
 #Configure the private DNS zone
@@ -460,7 +471,7 @@ az network vnet subnet update \
 
 ````
 az network private-dns zone create \
-  --resource-group rg_baseline \
+  --resource-group $RG \
   --name "privatelink.azurecr.io"
 
 ````
@@ -470,20 +481,20 @@ az network private-dns zone create \
 
 ````
 az network private-dns link vnet create \
-  --resource-group rg_baseline \
+  --resource-group $RG \
   --zone-name "privatelink.azurecr.io" \
   --name ACRDNSSpokeLink \
-  --virtual-network spoke-vnet \
+  --virtual-network $SPOKE_VNET_NAME \
   --registration-enabled false
  
   ````
 
 ````
 az network private-dns link vnet create \
-  --resource-group rg_baseline \
+  --resource-group $RG \
   --zone-name "privatelink.azurecr.io" \
   --name ACRDNSHubLink \
-  --virtual-network hub-vnet \
+  --virtual-network $HUB_VNET_NAME \
   --registration-enabled false
 
 ````
@@ -500,8 +511,8 @@ az acr show --name acraksbl \
 ````
 az network private-endpoint create \
     --name ACRPrivateEndpoint \
-    --resource-group rg_baseline \
-    --vnet-name spoke-vnet \
+    --resource-group $RG \
+    --vnet-name $SPOKE_VNET_NAME \
     --subnet endpoints-subnet \
     --private-connection-resource-id $REGISTRY_ID \
     --group-ids registry \
@@ -516,7 +527,7 @@ NETWORK_INTERFACE_ID=$(
 ````
 az network private-endpoint show \
   --name ACRPrivateEndpoint \
-  --resource-group rg_baseline \
+  --resource-group $RG \
   --query 'networkInterfaces[0].id' \
   --output tsv)
 
@@ -564,7 +575,7 @@ az network nic show \
 az network private-dns record-set a create \
   --name acraksbl \
   --zone-name privatelink.azurecr.io \
-  --resource-group rg_baseline
+  --resource-group $RG
 
   ````
 
@@ -575,7 +586,7 @@ az network private-dns record-set a create \
 az network private-dns record-set a create \
   --name acraksbl.westeurope.data \
   --zone-name privatelink.azurecr.io \
-  --resource-group rg_baseline
+  --resource-group $RG
 
 ````
   
@@ -587,7 +598,7 @@ az network private-dns record-set a create \
 az network private-dns record-set a add-record \
   --record-set-name acraksbl \
   --zone-name privatelink.azurecr.io \
-  --resource-group rg_baseline \
+  --resource-group $RG \
   --ipv4-address $REGISTRY_PRIVATE_IP
 
 ````
@@ -599,7 +610,7 @@ az network private-dns record-set a add-record \
 az network private-dns record-set a add-record \
   --record-set-name acraksbl.westeurope.data \
   --zone-name privatelink.azurecr.io \
-  --resource-group rg_baseline \
+  --resource-group $RG \
   --ipv4-address $DATA_ENDPOINT_PRIVATE_IP
 
 ````
@@ -610,14 +621,14 @@ az network private-dns record-set a add-record \
 
 
 ````
-az network public-ip create -g rg_baseline -n AGPublicIPAddress --dns-name mvcnstudent01 --allocation-method Static --sku Standard --location westeurope
+az network public-ip create -g $RG -n AGPublicIPAddress --dns-name mvcnstudent01 --allocation-method Static --sku Standard --location westeurope
 ````
 
 ## Create WAF policy 
 
 
 ````
-az network application-gateway waf-policy create --name ApplicationGatewayWAFPolicy --resource-group rg_baseline
+az network application-gateway waf-policy create --name ApplicationGatewayWAFPolicy --resource-group $RG
 ````
 
 ## Create application Gateway 
@@ -628,8 +639,8 @@ az network application-gateway waf-policy create --name ApplicationGatewayWAFPol
 az network application-gateway create \
   --name AppGateway \
   --location westeurope \
-  --resource-group rg_baseline \
-  --vnet-name spoke-vnet \
+  --resource-group $RG \
+  --vnet-name $SPOKE_VNET_NAME \
   --subnet app-gw-subnet \
   --capacity 1 \
   --sku WAF_v2 \
