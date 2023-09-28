@@ -1,9 +1,11 @@
-### Setup Environment Variables
+### Setup environment variables
 
 
 ````
 RG=<RESOURCE GROUP NAME>
-LOCATION=<LOCATION FOR THE RESOURCE> # NOTE for this exercise use "westeurope"  as region
+LOCATION=westeurope # NOTE for this exercise use "westeurope"  as region
+HUB_VNET_PREFIX=10.0.0.0/16 # IP range of the hub virtual network
+HUB_VNET_NAME=<Virtual Network Name>
 ````
 
 ### Create the resource group for the virtual networks
@@ -13,11 +15,6 @@ az group create --name $RG --location westeurope
 ````
 
 ### Create the hub virtual network with two subnets
-
-````
-HUB_VNET_PREFIX=10.0.0.0/16
-HUB_VNET_NAME=hub-vnet
-````
 
 ````
 az network vnet create \
