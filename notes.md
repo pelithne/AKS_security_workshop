@@ -639,8 +639,8 @@ az network application-gateway waf-policy create --name ApplicationGatewayWAFPol
 az network application-gateway create \
   --name AppGateway \
   --location westeurope \
-  --resource-group $RG \
-  --vnet-name $SPOKE_VNET_NAME \
+  --resource-group rg_baseline \
+  --vnet-name spoke-vnet \
   --subnet app-gw-subnet \
   --capacity 1 \
   --sku WAF_v2 \
@@ -651,4 +651,25 @@ az network application-gateway create \
   --priority "1" \
   --public-ip-address AGPublicIPAddress \
   --cert-file appgwcert.pfx \
-  --waf-policy ApplicationGatewayWAFPolicy
+  --cert-password "<PASSWORD>" \
+  --waf-policy ApplicationGatewayWAFPolicy \
+  --servers 10.1.3.4
+````
+### Create Health probe
+````
+ az network application-gateway probe create \
+    --gateway-name AppGateway \
+    --resource-group rg_baseline \
+    --name health-probe \
+    --protocol Http \
+    --path / \
+    --interval 30 \
+    --timeout 120 \
+    --threshold 3 \
+    --host 127.0.0.1
+````
+
+### Associate the health probe to the backend pool.
+````
+az network application-gateway http-settings update -g rg_baseline --gateway-name AppGateway -n appGatewayBackendHttpSettings --probe health-probe
+````
