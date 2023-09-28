@@ -1,3 +1,11 @@
+### Setup Environment Variables
+
+
+````
+RG=<RESOURCE GROUP NAME>
+LOCATION=<LOCATION FOR THE RESOURCE> # NOTE FOR THIS EXERCISE USE *westeurope* as location
+````
+
 ### Create the resource group for the virtual networks
 
 ````
