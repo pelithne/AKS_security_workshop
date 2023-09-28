@@ -9,10 +9,6 @@ LOCATION=<LOCATION FOR THE RESOURCE> # NOTE for this exercise use "westeurope"  
 ### Create the resource group for the virtual networks
 
 ````
-RG=rg_baseline
-````
-
-````
 az group create --name $RG --location westeurope
 ````
 
