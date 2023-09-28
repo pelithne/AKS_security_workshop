@@ -1,7 +1,7 @@
 ### Create the resource group for the virtual networks
 
 ````
-RG=$RG
+RG=rg_baseline
 ````
 
 ````
