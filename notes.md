@@ -141,7 +141,7 @@ az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $HUB_VNET_NAME \
     --name AzureFirewallSubnet \
-    --address-prefixes 10.0.2.0/24 \
+    --address-prefixes 10.0.2.0/24
 
 ````
 Create subnet for the Virtual Machine that will be used as "jumpbox".
@@ -152,7 +152,7 @@ az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $HUB_VNET_NAME \
     --name JumpboxSubnet \
-    --address-prefixes 10.0.3.0/24
+    --address-prefixes 10.0.3.0/24 \
     --network-security-group $JUMPBOX_NSG_NAME
 ````
 
@@ -283,7 +283,7 @@ az vm create \
     --os-disk-name jumpbox-win-osdisk \
     --os-disk-size-gb 128 \
     --nsg jumpbox-nsg \
-    --public-ip-address "" \
+    --public-ip-address "" 
   
 
 ````
@@ -295,7 +295,7 @@ az network nic create \
     --vnet-name $HUB_VNET_NAME \
     --subnet JumpBoxSubnet \
     --network-security-group jumpbox-nsg \
-    --accelerated-networking true \
+    --accelerated-networking true 
  
 
 ````
@@ -306,7 +306,7 @@ az network nic ip-config create \
     --nic-name jumpbox-win-nic \
     --name ipconfig1 \
     --private-ip-address 10.0.3.4 \
-    --public-ip-address "" \
+    --public-ip-address "" 
 
 ````
 
@@ -564,7 +564,7 @@ az acr create \
     --sku Premium \
     --admin-enabled false \
     --location westeurope \
-    --allow-trusted-services false
+    --allow-trusted-services false \
     --public-network-enabled false
 
 ````
