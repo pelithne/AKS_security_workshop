@@ -1,3 +1,9 @@
+USE MARKDOWN FILE INSTEAD (notes.md)
+
+
+
+
+
 # Create the resource group for the virtual networks
 az group create --name rg_baseline --location westeurope
 
