@@ -2,19 +2,13 @@
 
 
 ````
-RG=<RESOURCE GROUP NAME>
+RG=AKS_Security_RG
 LOCATION=westeurope # NOTE for this exercise use "westeurope"  as region
 HUB_VNET_PREFIX=10.0.0.0/16 # IP range of the hub virtual network
-HUB_VNET_NAME=<Virtual Network Name>
-BASTION_NSG_NAME<NSG Name>
-FW_NSG_NAME<NSG Name>
-JUMPBOX_NSG_NAME<NSG Name>
-BASTION_SUBNET_PREFIX=10.0.1.0/24
-FW_SUBNET_PREFIX=10.0.2.0/24
-JUMPBOX_SUBNET_PREFIX=10.0.3.0/24
-BASTION_SUBNET_NAME=<Subnet name>
-FW_SUBNET_NAME=<Subnet name>
-JUMPBOX_SUBNET_NAME=<Subnet name>
+HUB_VNET_NAME=HUB_VNET
+BASTION_NSG_NAME=Bastion_NSG
+JUMPBOX_NSG_NAME=Jumpbox_NSG
+
 
 ````
 
@@ -26,6 +20,8 @@ az group create --name $RG --location westeurope
 
 
 ### Create Network Security Group (NSG) for the Hub.
+
+//TODO: create a script that performs the actions below.
 
 In this step, we will begin by establishing a Network Security Group (NSG) that will subsequently be associated with the AzureBastionSubnet. It is crucial to note that there are specific prerequisites concerning security rules that must be met before Azure Bastion can be deployed.
 
@@ -111,15 +107,6 @@ Associate the required **outbound** security rules to the NSG.
     --destination-port-ranges 80
 ````
 
-In this step, we will be creating an NSG for the Firewall Subnet. It's important to note that we will not be specifying any security rules during this process. By default, Azure configures six basic security rules for both inbound and outbound traffic. These default rules provide a fundamental level of security. For the purpose of this exercise, we will adhere to these default settings, if you want to learn more about these rules, you can find more information [here](https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview#default-security-rules) Let's begin.
-
-````
-az network nsg create \
-    --resource-group $RG \
-    --name $FW_NSG_NAME \
-    --location $LOCATION
-````
-
 Create an NSG for the JumpBox subnet.
 
 ````
@@ -132,7 +119,7 @@ az network nsg create \
 ### Create the hub virtual network with three subnets, and associate the NSG to their respective subnet.
 
 
-Create the VNET with one subnet for **AzureBastionSubnet** and associate it to the bastion NSG.
+Create the HUB VNET with one subnet for **AzureBastionSubnet** and associate it to the bastion NSG.
 
 ````
 
@@ -140,31 +127,33 @@ az network vnet create \
     --resource-group $RG  \
     --name $HUB_VNET_NAME \
     --address-prefixes $HUB_VNET_PREFIX \
-    --subnet-name $BASTION_SUBNET_NAME \
-    --subnet-prefixes $BASTION_SUBNET_PREFIX \
+    --subnet-name AzureBastionSubnet \
+    --subnet-prefixes 10.0.1.0/24 \
     --network-security-group $BASTION_NSG_NAME
 
 ````
+Create subnet for the Azure Firewall
+
 
 ````
 
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $HUB_VNET_NAME \
-    --name $FW_SUBNET_NAME \
-    --address-prefixes FW_SUBNET_PREFIX \
-    --network-security-group $FW_NSG_NAME
+    --name AzureFirewallSubnet \
+    --address-prefixes 10.0.2.0/24 \
 
 ````
+Create subnet for the Virtual Machine that will be used as "jumpbox".
 
 ````
 
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $HUB_VNET_NAME \
-    --name $JUMPBOX_SUBNET_NAME \
-    --address-prefixes $JUMPBOX_SUBNET_PREFIX
-
+    --name JumpboxSubnet \
+    --address-prefixes 10.0.3.0/24
+    --network-security-group $JUMPBOX_NSG_NAME
 ````
 
 ### Create the spoke virtual network with one subnet for AKS
