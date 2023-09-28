@@ -1,11 +1,11 @@
-# Create the resource group for the virtual networks
+## Create the resource group for the virtual networks
 
 
 ````
 az group create --name rg_baseline --location westeurope
 ````
 
-# Create the hub virtual network with two subnets
+## Create the hub virtual network with two subnets
 
 
 ````
@@ -36,7 +36,7 @@ az network vnet subnet create \
 
 ````
 
-# Create the spoke virtual network with one subnet for AKS
+## Create the spoke virtual network with one subnet for AKS
 
 
 ````
@@ -76,7 +76,7 @@ az network vnet subnet create \
 
 ````
 
-# Create a peering connection between the hub and spoke virtual networks
+## Create a peering connection between the hub and spoke virtual networks
 
 
 ````
@@ -89,7 +89,7 @@ az network vnet peering create \
 
 ````
 
-# Create a peering connection between the spoke and hub virtual networks
+## Create a peering connection between the spoke and hub virtual networks
 
 
 ````
@@ -102,7 +102,7 @@ az network vnet peering create \
 
 ````
 
-# Create a public IP address for the bastion host
+## Create a public IP address for the bastion host
 
 
 ````
@@ -113,7 +113,7 @@ az network public-ip create \
     --allocation-method Static
 ````
 
-# Create a network security group for the bastion subnet
+## Create a network security group for the bastion subnet
 
 
 ````
@@ -122,7 +122,7 @@ az network nsg create \
     --name bastion-nsg
 ````
 
-# Create a network security group rule to allow SSH traffic to the bastion subnet
+## Create a network security group rule to allow SSH traffic to the bastion subnet
 
 
 ````
@@ -141,7 +141,7 @@ az network nsg rule create \
 
 ````
 
-# Create JumpBox host
+## Create JumpBox host
 
 
 
@@ -186,7 +186,7 @@ az network nic ip-config create \
 
 ````
 
-# Create the bastion host in hub vnet
+## Create the bastion host in hub vnet
 
 
 
@@ -200,10 +200,10 @@ az network bastion create \
 
 ````
 
-# Connect to VM using the portal:
+## Connect to VM using the portal:
 https://learn.microsoft.com/en-us/azure/bastion/create-host-cli#steps
 
-# Create an Azure Firewall in the azure-firewall-subnet
+## Create an Azure Firewall in the azure-firewall-subnet
 
 
 ````
@@ -243,7 +243,7 @@ az network firewall update \
 
 ````
 
-# Create Azure firewall network rules    
+## Create Azure firewall network rules    
 
 
 ````
@@ -259,7 +259,7 @@ az network firewall network-rule create -g rg_baseline -f azure-firewall --colle
 
 ````
 
-# Create Azure firewall application rules
+## Create Azure firewall application rules
 
 
 ````
@@ -267,7 +267,7 @@ az network firewall application-rule create -g rg_baseline -f azure-firewall --c
 
 ````
 
-# Create a route table for the spoke virtual network
+## Create a route table for the spoke virtual network
 
 
 ````
@@ -277,7 +277,7 @@ az network route-table create \
 
 ````
 
-# Create a route to the internet via the Azure Firewall
+## Create a route to the internet via the Azure Firewall
 
 
 ````
@@ -291,7 +291,7 @@ az network route-table route create \
 
 ````
 
-# Associate the route table with the aks-subnet
+## Associate the route table with the aks-subnet
 
 
 ````
@@ -303,7 +303,7 @@ az network vnet subnet update \
 
 ````
 
-# Create a user-assigned managed identity
+## Create a user-assigned managed identity
 
 
 ````
@@ -313,7 +313,7 @@ az identity create \
 
 ````
 
-# Get the id of the user managed identity
+## Get the id of the user managed identity
 identity_id=$(
 
 ````
@@ -325,7 +325,7 @@ az identity show \
 
 ````
 
-# Get the principal id of the user managed identity
+## Get the principal id of the user managed identity
 principal_id=$(
 
 ````
@@ -337,7 +337,7 @@ az identity show \
 
 ````
 
-# Assign permissions for the user managed identity to the routing table
+## Assign permissions for the user managed identity to the routing table
 
 
 ````
@@ -348,7 +348,7 @@ az role assignment create \
 
 ````
 
-# Create a custom role, with least privilage access for AKS load balancer subnet
+## Create a custom role, with least privilage access for AKS load balancer subnet
 
 ````
 touch aks-net-contributor.json
@@ -383,7 +383,7 @@ add the following information to the json file.
 }
 ````
 
-# create a role
+## create a role
 
 
 ````
@@ -404,7 +404,7 @@ az identity show --name abui --resource-group rg_baseline --query principalId --
 az role assignment create --assignee $principalId --role "aks-net-contributor"
 ````
 
-# Create the AKS cluster in the aks-subnet
+## Create the AKS cluster in the aks-subnet
 
 
 ````
@@ -412,7 +412,7 @@ az aks create --resource-group rg_baseline --node-count 3 --vnet-subnet-id /subs
 
 ````
 
-# Link the the hub network to the private DNS zone. 
+## Link the the hub network to the private DNS zone. 
 
 DNS_ZONE_NAME=$(
 
@@ -430,7 +430,7 @@ az network private-dns link vnet create --name "hubnetdnsconfig" --registration-
 
 ````
 
-# create ACR 
+## create ACR 
 
 
 ````
@@ -445,7 +445,7 @@ az acr create \
 
 ````
 
-# Disable network policies in subnet
+## Disable network policies in subnet
 
 
 ````
@@ -465,7 +465,7 @@ az network private-dns zone create \
 
 ````
 
-# Create a virtual network association link
+## Create a virtual network association link
  
 
 ````
@@ -488,7 +488,7 @@ az network private-dns link vnet create \
 
 ````
 
-# Create a private registry endpoint 
+## Create a private registry endpoint 
 REGISTRY_ID=$(
 
 ````
@@ -508,9 +508,9 @@ az network private-endpoint create \
     --connection-name PrivateACRConnection
 ````
 
-## Configure DNS record 
+### Configure DNS record 
 
-# get endpoint IP configuration
+## get endpoint IP configuration
 NETWORK_INTERFACE_ID=$(
 
 ````
@@ -522,13 +522,13 @@ az network private-endpoint show \
 
  ```` 
 
-# fetch the container registry private IP address
+## fetch the container registry private IP address
 REGISTRY_PRIVATE_IP=$(
 
 ````
 az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry'].privateIPAddress" -o tsv)
 ````
-# fetch the data endpoint IP address of the container registry
+## fetch the data endpoint IP address of the container registry
 
 DATA_ENDPOINT_PRIVATE_IP=$(
 
@@ -536,7 +536,7 @@ DATA_ENDPOINT_PRIVATE_IP=$(
 az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry_data_westeurope'].privateIPAddress" -o tsv)
 ````
 
-# fetch the FQDN associated with the registry and data endpoint
+## fetch the FQDN associated with the registry and data endpoint
 
 REGISTRY_FQDN=$(
 
@@ -568,7 +568,7 @@ az network private-dns record-set a create \
 
   ````
 
-# Specify registry region in data endpoint name
+## Specify registry region in data endpoint name
 
 
 ````
@@ -579,7 +579,7 @@ az network private-dns record-set a create \
 
 ````
   
-# create the A records for the registry endpoint and data endpoint
+## create the A records for the registry endpoint and data endpoint
 
 
 
@@ -592,7 +592,7 @@ az network private-dns record-set a add-record \
 
 ````
 
-# Specify registry region in data endpoint name
+## Specify registry region in data endpoint name
 
 
 ````
@@ -604,23 +604,23 @@ az network private-dns record-set a add-record \
 
 ````
 
-## Create Application Gateway
+### Create Application Gateway
 
-# Create public IP address with a domain name associated to the PIP resource
+## Create public IP address with a domain name associated to the PIP resource
 
 
 ````
 az network public-ip create -g rg_baseline -n AGPublicIPAddress --dns-name mvcnstudent01 --allocation-method Static --sku Standard --location westeurope
 ````
 
-# Create WAF policy 
+## Create WAF policy 
 
 
 ````
 az network application-gateway waf-policy create --name ApplicationGatewayWAFPolicy --resource-group rg_baseline
 ````
 
-# Create application Gateway 
+## Create application Gateway 
 
   
 
