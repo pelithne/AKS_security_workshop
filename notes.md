@@ -227,6 +227,7 @@ az network vnet subnet create \
 	--network-security-group $LOADBALANCER_NSG_NAME
 ````
 
+Create subnet for the Application Gateway and associate it to the Application Gateway NSG.
 
 ````
 az network vnet subnet create \
