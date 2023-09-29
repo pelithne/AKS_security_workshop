@@ -5,9 +5,15 @@
 RG=AKS_Security_RG
 LOCATION=westeurope # NOTE for this exercise use "westeurope"  as region
 HUB_VNET_PREFIX=10.0.0.0/16 # IP range of the hub virtual network
-HUB_VNET_NAME=HUB_VNET
+HUB_VNET_NAME=Hub_VNET
 BASTION_NSG_NAME=Bastion_NSG
 JUMPBOX_NSG_NAME=Jumpbox_NSG
+AKS_NSG_NAME=Aks_NSG
+ENDPOINTS_NSG_NAME=Endpoints_NSG
+LOADBALANCER_NSG_NAME=Loadbalancer_NSG
+APPGW_NSG=Appgw_NSG
+SPOKE_VNET_PREFIX=10.1.0.0/16
+SPOKE_VNET_NAME=Spoke_VNET
 
 
 ````
@@ -156,12 +162,35 @@ az network vnet subnet create \
     --network-security-group $JUMPBOX_NSG_NAME
 ````
 
-### Create the spoke virtual network with one subnet for AKS
+### Create Network Security Group (NSG) for the Spoke.
+````
+az network nsg create \
+    --resource-group $RG \
+    --name $AKS_NSG_NAME \
+    --location $LOCATION
+	
+az network nsg create \
+    --resource-group $RG \
+    --name $ENDPOINTS_NSG_NAME \
+    --location $LOCATION
 
+az network nsg create \
+    --resource-group $RG \
+    --name $LOADBALANCER_NSG_NAME \
+    --location $LOCATION
+
+az network nsg create \
+    --resource-group $RG \
+    --name $APPGW_NSG \
+    --location $LOCATION
 ````
-SPOKE_VNET_PREFIX=10.1.0.0/16
-SPOKE_VNET_NAME=spoke-vnet
-````
+
+
+
+### Create the spoke virtual network with 4 subnets, and associate the NSG to their respective subnet.
+
+
+Create the spoke VNET with one subnet for **AKS Subnet** and associate it to the AKS NSG.
 
 ````
 az network vnet create \
@@ -169,34 +198,43 @@ az network vnet create \
     --name $SPOKE_VNET_NAME \
     --address-prefixes $SPOKE_VNET_PREFIX \
     --subnet-name aks-subnet \
-    --subnet-prefixes 10.1.1.0/24
+    --subnet-prefixes 10.1.1.0/24 \
+	--network-security-group $AKS_NSG_NAME
 
 ````
+
+Create subnet for the Endpoints and associate it to the endpoints NSG.
+
 
 ````
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME  \
     --name endpoints-subnet \
-    --address-prefixes 10.1.2.0/24
+    --address-prefixes 10.1.2.0/24 \
+	--network-security-group $ENDPOINTS_NSG_NAME
 
 ````
+
+Create subnet for the load balancer that will be used for ingress traffic and associate it to the loadbalancer NSG.
 
 ````
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
     --name loadbalancer-subnet \
-    --address-prefixes 10.1.3.0/24
-
+    --address-prefixes 10.1.3.0/24 \
+	--network-security-group $LOADBALANCER_NSG_NAME
 ````
+
 
 ````
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
     --name app-gw-subnet \
-    --address-prefixes 10.1.4.0/24
+    --address-prefixes 10.1.4.0/24 \
+	--network-security-group $APPGW_NSG
 
 ````
 
