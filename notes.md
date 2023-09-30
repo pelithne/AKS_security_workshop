@@ -23,6 +23,7 @@ SPOKE_VNET_PREFIX=10.1.0.0/16
 SPOKE_VNET_NAME=Spoke_VNET
 FW_NAME=azure-firewall
 ROUTE_TABLE_NAME=spoke-rt
+AKS_IDENTITY_NAME=aks-msi
 
 
 ````
@@ -437,7 +438,7 @@ az network vnet subnet update \
 ````
 az identity create \
     --resource-group $RG \
-    --name abui
+    --name $AKS_IDENTITY_NAME
 
 ````
 
@@ -447,7 +448,7 @@ identity_id=$(
 ````
 az identity show \
     --resource-group $RG \
-    --name abui \
+    --name $AKS_IDENTITY_NAME \
     --query id \
     --output tsv)
 
@@ -459,7 +460,7 @@ principal_id=$(
 ````
 az identity show \
     --resource-group $RG \
-    --name abui \
+    --name $AKS_IDENTITY_NAME \
     --query principalId \
     --output tsv)
 
@@ -524,7 +525,7 @@ assign the custom role to the user assigned managed identity, first identify the
 principalId=$(
 
 ````
-az identity show --name abui --resource-group $RG --query principalId --output tsv)
+az identity show --name $AKS_IDENTITY_NAME --resource-group $RG --query principalId --output tsv)
 
 ````
 
