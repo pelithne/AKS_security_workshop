@@ -21,6 +21,8 @@ LOADBALANCER_NSG_NAME=Loadbalancer_NSG
 APPGW_NSG=Appgw_NSG
 SPOKE_VNET_PREFIX=10.1.0.0/16
 SPOKE_VNET_NAME=Spoke_VNET
+FW_NAME=azure-firewall
+ROUTE_TABLE_NAME=spoke-rt
 
 
 ````
@@ -335,7 +337,7 @@ For additional information on accessing VMs through Bastion, please refer to thi
 ````
 az network firewall create \
     --resource-group $RG \
-    --name azure-firewall \
+    --name $FW_NAME \
     --location westeurope \
     --vnet-name $HUB_VNET_NAME \
     --enable-dns-proxy true
@@ -354,7 +356,7 @@ az network public-ip create \
 
 ````
 az network firewall ip-config create \
-    --firewall-name azure-firewall \
+    --firewall-name $FW_NAME \
     --name FW-config \
     --public-ip-address fw-pip \
     --resource-group $RG \
@@ -364,7 +366,7 @@ az network firewall ip-config create \
 
 ````
 az network firewall update \
-    --name azure-firewall \
+    --name $FW_NAME \
     --resource-group $RG 
 
 ````
@@ -373,15 +375,15 @@ az network firewall update \
 
 
 ````
-az network firewall network-rule create -g $RG -f azure-firewall --collection-name 'aksfwnr' -n 'apiudp' --protocols 'UDP' --source-addresses '*' --destination-addresses "AzureCloud.$LOCATION" --destination-ports 1194 --action allow --priority 100
+az network firewall network-rule create -g $RG -f $FW_NAME --collection-name 'aksfwnr' -n 'apiudp' --protocols 'UDP' --source-addresses '*' --destination-addresses "AzureCloud.$LOCATION" --destination-ports 1194 --action allow --priority 100
 ````
 
 ````
-az network firewall network-rule create -g $RG -f azure-firewall --collection-name 'aksfwnr' -n 'apitcp' --protocols 'TCP' --source-addresses '*' --destination-addresses "AzureCloud.$LOCATION" --destination-ports 9000
+az network firewall network-rule create -g $RG -f $FW_NAME --collection-name 'aksfwnr' -n 'apitcp' --protocols 'TCP' --source-addresses '*' --destination-addresses "AzureCloud.$LOCATION" --destination-ports 9000
 ````
 
 ````
-az network firewall network-rule create -g $RG -f azure-firewall --collection-name 'aksfwnr' -n 'time' --protocols 'UDP' --source-addresses '*' --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123
+az network firewall network-rule create -g $RG -f $FW_NAME --collection-name 'aksfwnr' -n 'time' --protocols 'UDP' --source-addresses '*' --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123
 
 ````
 
@@ -389,7 +391,7 @@ az network firewall network-rule create -g $RG -f azure-firewall --collection-na
 
 
 ````
-az network firewall application-rule create -g $RG -f azure-firewall --collection-name 'aksfwar' -n 'fqdn' --source-addresses '*' --protocols 'http=80' 'https=443' --fqdn-tags "AzureKubernetesService" --action allow --priority 100
+az network firewall application-rule create -g $RG -f $FW_NAME --collection-name 'aksfwar' -n 'fqdn' --source-addresses '*' --protocols 'http=80' 'https=443' --fqdn-tags "AzureKubernetesService" --action allow --priority 100
 
 ````
 
@@ -399,7 +401,7 @@ az network firewall application-rule create -g $RG -f azure-firewall --collectio
 ````
 az network route-table create \
     --resource-group $RG  \
-    --name spoke-rt
+    --name $ROUTE_TABLE_NAME
 
 ````
 
@@ -410,7 +412,7 @@ az network route-table create \
 az network route-table route create \
     --resource-group $RG  \
     --name default-route \
-    --route-table-name spoke-rt \
+    --route-table-name $ROUTE_TABLE_NAME \
     --address-prefix 0.0.0.0/0 \
     --next-hop-type VirtualAppliance \
     --next-hop-ip-address 10.0.2.4
@@ -425,7 +427,7 @@ az network vnet subnet update \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
     --name $AKS_SUBNET_NAME \
-    --route-table spoke-rt
+    --route-table $ROUTE_TABLE_NAME
 
 ````
 
@@ -469,7 +471,7 @@ az identity show \
 ````
 az role assignment create \
     --assignee $principal_id \
-    --scope /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/routeTables/spoke-rt \
+    --scope /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/routeTables/$ROUTE_TABLE_NAME \
     --role "Network Contributor"
 
 ````
