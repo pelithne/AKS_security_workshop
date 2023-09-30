@@ -407,6 +407,13 @@ az network route-table create \
 ````
 
 ### Create a route to the internet via the Azure Firewall
+````
+ fw_private_ip=$(az network firewall show \
+    --resource-group $RG \
+    --name $FW_NAME \
+    --query 'ipConfigurations[0].privateIpAddress' \
+    --output tsv)
+````
 
 
 ````
@@ -416,7 +423,7 @@ az network route-table route create \
     --route-table-name $ROUTE_TABLE_NAME \
     --address-prefix 0.0.0.0/0 \
     --next-hop-type VirtualAppliance \
-    --next-hop-ip-address 10.0.2.4
+    --next-hop-ip-address $fw_private_ip
 
 ````
 
