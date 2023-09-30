@@ -6,6 +6,13 @@ RG=AKS_Security_RG
 LOCATION=westeurope # NOTE for this exercise use "westeurope"  as region
 HUB_VNET_PREFIX=10.0.0.0/16 # IP range of the hub virtual network
 HUB_VNET_NAME=Hub_VNET
+FW_SUBNET_NAME=AzureFirewallSubnet
+BASTION_SUBNET_NAME=AzureBastionSubnet
+JUMPBOX_SUBNET_NAME=JumpboxSubnet
+ENDPOINTS_SUBNET_NAME=endpoints-subnet
+APPGW_SUBNET_NAME=app-gw-subnet
+AKS_SUBNET_NAME=aks-subnet
+LOADBALANCER_SUBNET_NAME=loadbalancer-subnet
 BASTION_NSG_NAME=Bastion_NSG
 JUMPBOX_NSG_NAME=Jumpbox_NSG
 AKS_NSG_NAME=Aks_NSG
@@ -125,7 +132,7 @@ az network nsg create \
 ### Create the hub virtual network with three subnets, and associate the NSG to their respective subnet.
 
 
-Create the HUB VNET with one subnet for **AzureBastionSubnet** and associate it to the bastion NSG.
+Create the HUB VNET with one subnet for **Azure Bastion Subnet** and associate it to the bastion NSG.
 
 ````
 
@@ -133,7 +140,7 @@ az network vnet create \
     --resource-group $RG  \
     --name $HUB_VNET_NAME \
     --address-prefixes $HUB_VNET_PREFIX \
-    --subnet-name AzureBastionSubnet \
+    --subnet-name $BASTION_SUBNET_NAME \
     --subnet-prefixes 10.0.1.0/24 \
     --network-security-group $BASTION_NSG_NAME
 
@@ -146,7 +153,7 @@ Create subnet for the Azure Firewall
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $HUB_VNET_NAME \
-    --name AzureFirewallSubnet \
+    --name $FW_SUBNET_NAME \
     --address-prefixes 10.0.2.0/24
 
 ````
@@ -157,7 +164,7 @@ Create subnet for the Virtual Machine that will be used as "jumpbox".
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $HUB_VNET_NAME \
-    --name JumpboxSubnet \
+    --name $JUMPBOX_SUBNET_NAME \
     --address-prefixes 10.0.3.0/24 \
     --network-security-group $JUMPBOX_NSG_NAME
 ````
@@ -197,7 +204,7 @@ az network vnet create \
     --resource-group $RG  \
     --name $SPOKE_VNET_NAME \
     --address-prefixes $SPOKE_VNET_PREFIX \
-    --subnet-name aks-subnet \
+    --subnet-name $AKS_SUBNET_NAME \
     --subnet-prefixes 10.1.1.0/24 \
 	--network-security-group $AKS_NSG_NAME
 
@@ -210,7 +217,7 @@ Create subnet for the Endpoints and associate it to the endpoints NSG.
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME  \
-    --name endpoints-subnet \
+    --name $ENDPOINTS_SUBNET_NAME \
     --address-prefixes 10.1.2.0/24 \
 	--network-security-group $ENDPOINTS_NSG_NAME
 
@@ -222,7 +229,7 @@ Create subnet for the load balancer that will be used for ingress traffic and as
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
-    --name loadbalancer-subnet \
+    --name $LOADBALANCER_SUBNET_NAME \
     --address-prefixes 10.1.3.0/24 \
 	--network-security-group $LOADBALANCER_NSG_NAME
 ````
@@ -233,7 +240,7 @@ Create subnet for the Application Gateway and associate it to the Application Ga
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
-    --name app-gw-subnet \
+    --name $APPGW_SUBNET_NAME \
     --address-prefixes 10.1.4.0/24 \
 	--network-security-group $APPGW_NSG
 
@@ -271,82 +278,29 @@ az network vnet peering create \
 ````
 az network public-ip create \
     --resource-group $RG  \
-    --name bastion-pip \
+    --name Bastion-PIP \
     --sku Standard \
     --allocation-method Static
 ````
 
-### Create a network security group for the bastion subnet
-
-
-````
-az network nsg create \
-    --resource-group $RG  \
-    --name bastion-nsg
-````
-
-### Create a network security group rule to allow SSH traffic to the bastion subnet
-
-
-````
-az network nsg rule create \
-    --resource-group $RG  \
-    --nsg-name bastion-nsg \
-    --name allow-ssh \
-    --protocol Tcp \
-    --direction Inbound \
-    --source-address-prefixes Internet \
-    --source-port-ranges '*' \
-    --destination-address-prefixes 10.0.1.0/24 \
-    --destination-port-ranges 22 \
-    --access Allow \
-    --priority 100
-
-````
 
 ### Create JumpBox host
-
-
 
 ````
 az vm create \
     --resource-group $RG \
-    --name jumpbox-win \
-    --image Win2019Datacenter \
+    --name Jumpbox-VM \
+    --image UbuntuLTS\
     --admin-username azureuser \
     --admin-password Ericsson_2055 \
     --vnet-name $HUB_VNET_NAME \
-    --subnet JumpBoxSubnet \
+    --subnet $JUMPBOX_SUBNET_NAME \
     --size Standard_B2s \
     --storage-sku Standard_LRS \
-    --os-disk-name jumpbox-win-osdisk \
+    --os-disk-name Jumpbox-VM-osdisk \
     --os-disk-size-gb 128 \
-    --nsg jumpbox-nsg \
     --public-ip-address "" 
   
-
-````
-
-````
-az network nic create \
-    --resource-group $RG \
-    --name jumpbox-win-nic \
-    --vnet-name $HUB_VNET_NAME \
-    --subnet JumpBoxSubnet \
-    --network-security-group jumpbox-nsg \
-    --accelerated-networking true 
- 
-
-````
-
-````
-az network nic ip-config create \
-    --resource-group $RG \
-    --nic-name jumpbox-win-nic \
-    --name ipconfig1 \
-    --private-ip-address 10.0.3.4 \
-    --public-ip-address "" 
-
 ````
 
 ### Create the bastion host in hub vnet
@@ -357,16 +311,25 @@ az network nic ip-config create \
 az network bastion create \
     --resource-group $RG \
     --name bastionhost \
-    --public-ip-address bastion-pip \
+    --public-ip-address Bastion-PIP \
     --vnet-name $HUB_VNET_NAME \
     --location westeurope
 
 ````
 
 ### Connect to VM using the portal:
-https://learn.microsoft.com/en-us/azure/bastion/create-host-cli#steps
 
-### Create an Azure Firewall in the azure-firewall-subnet
+Upon successful installation of the Jumpbox Virtual Machine (VM), the next step is to validate the connectivity between the Bastion and Jumpbox host. Here are the steps to follow:
+
+1) Navigate to the Azure portal at **portal.azure.com** and enter your login credentials.
+2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
+3) Within your resource group, find and click on the **Jumpbox VM**.
+4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
+5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully.
+
+For additional information on accessing VMs through Bastion, please refer to this [Microsoft Azure Bastion tutorial](https://learn.microsoft.com/en-us/azure/bastion/create-host-cli#steps)
+
+### Create an Azure Firewall in the Azure firewall subnet
 
 
 ````
@@ -461,7 +424,7 @@ az network route-table route create \
 az network vnet subnet update \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
-    --name aks-subnet \
+    --name $AKS_SUBNET_NAME \
     --route-table spoke-rt
 
 ````
@@ -524,7 +487,7 @@ add the following information to the json file.
         "roleName": "aks-net-contributor",
         "description": "least privilige access",
         "assignableScopes": [
-            "/subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/virtualNetworks/$SPOKE_VNET_NAME/subnets/loadbalancer-subnet"
+            "/subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/virtualNetworks/$SPOKE_VNET_NAME/subnets/$LOADBALANCER_SUBNET_NAME"
         ],
         "permissions": [
             {
@@ -571,7 +534,7 @@ az role assignment create --assignee $principalId --role "aks-net-contributor"
 
 
 ````
-az aks create --resource-group $RG --node-count 3 --vnet-subnet-id /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/virtualNetworks/$SPOKE_VNET_NAME/subnets/aks-subnet  --enable-aad --enable-azure-rbac --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
+az aks create --resource-group $RG --node-count 3 --vnet-subnet-id /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/virtualNetworks/$SPOKE_VNET_NAME/subnets/$AKS_SUBNET_NAME  --enable-aad --enable-azure-rbac --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
 
 ````
 
@@ -613,7 +576,7 @@ az acr create \
 
 ````
 az network vnet subnet update \
- --name endpoints-subnet \
+ --name $ENDPOINTS_SUBNET_NAME \
  --vnet-name $SPOKE_VNET_NAME\
  --resource-group $RG \
  --disable-private-endpoint-network-policies
@@ -665,7 +628,7 @@ az network private-endpoint create \
     --name ACRPrivateEndpoint \
     --resource-group $RG \
     --vnet-name $SPOKE_VNET_NAME \
-    --subnet endpoints-subnet \
+    --subnet $ENDPOINTS_SUBNET_NAME \
     --private-connection-resource-id $REGISTRY_ID \
     --group-ids registry \
     --connection-name PrivateACRConnection
@@ -793,7 +756,7 @@ az network application-gateway create \
   --location westeurope \
   --resource-group rg_baseline \
   --vnet-name spoke-vnet \
-  --subnet app-gw-subnet \
+  --subnet $APPGW_SUBNET_NAME \
   --capacity 1 \
   --sku WAF_v2 \
   --http-settings-cookie-based-affinity Disabled \
