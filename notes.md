@@ -453,10 +453,8 @@ az identity create \
 ````
 
 ### Get the principal id of the user managed identity
-principal_id=$(
-
 ````
-az identity show \
+principal_id=$(az identity show \
     --resource-group $RG \
     --name $AKS_IDENTITY_NAME \
     --query principalId \
