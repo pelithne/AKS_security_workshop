@@ -462,13 +462,21 @@ principal_id=$(az identity show \
 
 ````
 
+### Get the scope of the routing table
+
+rt_scope=$(az network route-table show \
+    --resource-group $RG \
+    --name $ROUTE_TABLE_NAME  \
+    --query id \
+    --output tsv)
+
 ### Assign permissions for the user managed identity to the routing table
 
 
 ````
 az role assignment create \
     --assignee $principal_id \
-    --scope /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/routeTables/$ROUTE_TABLE_NAME \
+    --scope $rt_scope \
     --role "Network Contributor"
 
 ````
