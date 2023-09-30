@@ -443,10 +443,8 @@ az identity create \
 ````
 
 ### Get the id of the user managed identity
-identity_id=$(
-
 ````
-az identity show \
+ identity_id=$(az identity show \
     --resource-group $RG \
     --name $AKS_IDENTITY_NAME \
     --query id \
