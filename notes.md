@@ -290,7 +290,7 @@ az network public-ip create \
 az vm create \
     --resource-group $RG \
     --name Jumpbox-VM \
-    --image UbuntuLTS\
+    --image Ubuntu2204 \
     --admin-username azureuser \
     --admin-password Ericsson_2055 \
     --vnet-name $HUB_VNET_NAME \
@@ -299,7 +299,8 @@ az vm create \
     --storage-sku Standard_LRS \
     --os-disk-name Jumpbox-VM-osdisk \
     --os-disk-size-gb 128 \
-    --public-ip-address "" 
+    --public-ip-address "" \
+    --custom-data cloud-init.txt 
   
 ````
 
