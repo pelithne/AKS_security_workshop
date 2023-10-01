@@ -518,7 +518,7 @@ aks_subnet_scope=$(az network vnet subnet list \
 ````
 
 ````bash
-az aks create --resource-group $RG --node-count 3 --vnet-subnet-id $aks_subnet_scope --enable-aad --enable-azure-rbac --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
+az aks create --resource-group $RG --node-count 3 --vnet-subnet-id $aks_subnet_scope --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
 
 ````
 
