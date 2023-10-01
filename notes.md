@@ -24,6 +24,7 @@ SPOKE_VNET_NAME=Spoke_VNET
 FW_NAME=azure-firewall
 ROUTE_TABLE_NAME=spoke-rt
 AKS_IDENTITY_NAME=aks-msi
+JUMPBOX_VM_NAME=Jumpbox-VM
 
 ````
 
@@ -289,7 +290,7 @@ az network public-ip create \
 ````bash
 az vm create \
     --resource-group $RG \
-    --name Jumpbox-VM \
+    --name $JUMPBOX_VM_NAME \
     --image Ubuntu2204 \
     --admin-username azureuser \
     --admin-password Ericsson_2055 \
@@ -297,13 +298,15 @@ az vm create \
     --subnet $JUMPBOX_SUBNET_NAME \
     --size Standard_B2s \
     --storage-sku Standard_LRS \
-    --os-disk-name Jumpbox-VM-osdisk \
+    --os-disk-name $JUMPBOX_VM_NAME-VM-osdisk \
     --os-disk-size-gb 128 \
     --public-ip-address "" \
-    --custom-data cloud-init.txt \
     --nsg ""  
   
 ````
+````bash
+az vm extension set --resource-group $RG --vm-name $JUMPBOX_VM_NAME --name customScript --publisher Microsoft.Azure.Extensions --version 2.0 --settings "{\"fileUris\":[\"https://raw.githubusercontent.com/abengtss-max/simple_aks/main/install.sh\"]}" --protected-settings "{\"commandToExecute\": \"sh install.sh\"}"
+
 
 ### Create the bastion host in hub vnet
 
@@ -327,7 +330,7 @@ Upon successful installation of the Jumpbox Virtual Machine (VM), the next step 
 2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
 3) Within your resource group, find and click on the **Jumpbox VM**.
 4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
-5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully.
+5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully, 
 
 For additional information on accessing VMs through Bastion, please refer to this [Microsoft Azure Bastion tutorial](https://learn.microsoft.com/en-us/azure/bastion/create-host-cli#steps)
 
