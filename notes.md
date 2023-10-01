@@ -477,7 +477,7 @@ rt_scope=$(az network route-table show \
     --query id \
     --output tsv)
 
-### Assign permissions for the user managed identity to the routing table
+### Assign permissions for the AKS user defined managed identity to the routing table
 
 
 ````
@@ -487,62 +487,27 @@ az role assignment create \
     --role "Network Contributor"
 
 ````
-
-### Create a custom role, with least privilage access for AKS load balancer subnet
-
-````
-touch aks-net-contributor.json
-````
-
-add the following information to the json file.
-````
-{
-    "properties": {
-        "roleName": "aks-net-contributor",
-        "description": "least privilige access",
-        "assignableScopes": [
-            "/subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/virtualNetworks/$SPOKE_VNET_NAME/subnets/$LOADBALANCER_SUBNET_NAME"
-        ],
-        "permissions": [
-            {
-                "actions": [
-                    "Microsoft.Network/loadBalancers/read",
-                    "Microsoft.Network/loadBalancers/write",
-                    "Microsoft.Network/networkSecurityGroups/join/action",
-                    "Microsoft.Network/loadBalancers/delete",
-                    "Microsoft.Network/virtualNetworks/subnets/read",
-                    "Microsoft.Network/virtualNetworks/subnets/write",
-                    "Microsoft.Network/virtualNetworks/subnets/join/action"
-                ],
-                "notActions": [],
-                "dataActions": [],
-                "notDataActions": []
-            }
-        ]
-    }
-}
-````
-
-### create a role
-
+### Assign permission for the AKS user defined managed identity to the load balancer subnet
 
 ````
-az role definition create --role-definition ./aks-net-contributor.json
+lb_scope=$(az network vnet list \
+    --resource-group $RG \
+    --vnet-name $SPOKE_VNET_NAME \
+    --query "[?name=='$LOADBALANCER_SUBNET_NAME'].id" \
+    --output tsv)
+
+
+az role assignment create \
+    --assignee $principal_id \
+    --scope $lb_scope \
+    --role "Network Contributor"
+
 ````
+> **_! Note:_**
+In the context of Azure Kubernetes Service (AKS), granting the Network Contributor role to the load balancer subnet could potentially result in over-privileged access. This means that AKS may have more permissions than it actually requires for its operations. 
 
+To adhere to the principle of least privilege access, it is recommended to only provide AKS with the necessary permissions it needs to function effectively. This approach minimizes potential security risks by limiting the access rights of AKS to the bare minimum required for it to perform its tasks. For more information refer to ./docs/customrole.md
 
-assign the custom role to the user assigned managed identity, first identify the service principal ID
-
-principalId=$(
-
-````
-az identity show --name $AKS_IDENTITY_NAME --resource-group $RG --query principalId --output tsv)
-
-````
-
-````
-az role assignment create --assignee $principalId --role "aks-net-contributor"
-````
 
 ### Create the AKS cluster in the aks-subnet
 
