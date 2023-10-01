@@ -300,7 +300,8 @@ az vm create \
     --os-disk-name Jumpbox-VM-osdisk \
     --os-disk-size-gb 128 \
     --public-ip-address "" \
-    --custom-data cloud-init.txt 
+    --custom-data cloud-init.txt \
+    --nsg ""  
   
 ````
 
