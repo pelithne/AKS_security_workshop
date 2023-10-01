@@ -1,7 +1,7 @@
 ### Setup environment variables
 
 
-````
+````bash
 RG=AKS_Security_RG
 LOCATION=westeurope # NOTE for this exercise use "westeurope"  as region
 HUB_VNET_PREFIX=10.0.0.0/16 # IP range of the hub virtual network
@@ -25,12 +25,11 @@ FW_NAME=azure-firewall
 ROUTE_TABLE_NAME=spoke-rt
 AKS_IDENTITY_NAME=aks-msi
 
-
 ````
 
 ### Create the resource group for the virtual networks
 
-````
+````bash
 az group create --name $RG --location westeurope
 ````
 
@@ -44,7 +43,7 @@ In this step, we will begin by establishing a Network Security Group (NSG) that 
 Essentially, we are establishing security rules to permit both the control and data plane access to the AzureBastion. For a more detailed understanding of these rules, please refer to the following resource: [More Information](https://learn.microsoft.com/en-us/azure/bastion/bastion-nsg).
 
 Lets Create the NSG for AzureBastionSubnet.
-````
+````bash
 az network nsg create \
     --resource-group $RG \
     --name $BASTION_NSG_NAME \
@@ -52,7 +51,7 @@ az network nsg create \
 ````
 
 Associate the required **inbound** security rules to the NSG.
-````
+````bash
     az network nsg rule create --name AllowHttpsInbound \
     --nsg-name $BASTION_NSG_NAME --priority 120 --resource-group $RG\
     --access Allow --protocol TCP --direction Inbound \
@@ -89,7 +88,7 @@ Associate the required **inbound** security rules to the NSG.
 
 Associate the required **outbound** security rules to the NSG.
 
-````
+````bash
     az network nsg rule create --name AllowSshRdpOutbound \
     --nsg-name $BASTION_NSG_NAME --priority 100 --resource-group $RG\
     --access Allow --protocol "*" --direction outbound \
@@ -125,7 +124,7 @@ Associate the required **outbound** security rules to the NSG.
 
 Create an NSG for the JumpBox subnet.
 
-````
+````bash
 az network nsg create \
     --resource-group $RG \
     --name $JUMPBOX_NSG_NAME \
@@ -137,8 +136,7 @@ az network nsg create \
 
 Create the HUB VNET with one subnet for **Azure Bastion Subnet** and associate it to the bastion NSG.
 
-````
-
+````bash
 az network vnet create \
     --resource-group $RG  \
     --name $HUB_VNET_NAME \
@@ -151,8 +149,7 @@ az network vnet create \
 Create subnet for the Azure Firewall
 
 
-````
-
+````bash
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $HUB_VNET_NAME \
@@ -162,7 +159,7 @@ az network vnet subnet create \
 ````
 Create subnet for the Virtual Machine that will be used as "jumpbox".
 
-````
+````bash
 
 az network vnet subnet create \
     --resource-group $RG  \
@@ -173,7 +170,7 @@ az network vnet subnet create \
 ````
 
 ### Create Network Security Group (NSG) for the Spoke.
-````
+````bash
 az network nsg create \
     --resource-group $RG \
     --name $AKS_NSG_NAME \
@@ -202,7 +199,7 @@ az network nsg create \
 
 Create the spoke VNET with one subnet for **AKS Subnet** and associate it to the AKS NSG.
 
-````
+````bash
 az network vnet create \
     --resource-group $RG  \
     --name $SPOKE_VNET_NAME \
@@ -216,7 +213,7 @@ az network vnet create \
 Create subnet for the Endpoints and associate it to the endpoints NSG.
 
 
-````
+````bash
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME  \
@@ -228,7 +225,7 @@ az network vnet subnet create \
 
 Create subnet for the load balancer that will be used for ingress traffic and associate it to the loadbalancer NSG.
 
-````
+````bash
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
@@ -239,7 +236,7 @@ az network vnet subnet create \
 
 Create subnet for the Application Gateway and associate it to the Application Gateway NSG.
 
-````
+````bash
 az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
@@ -252,7 +249,7 @@ az network vnet subnet create \
 ### Create a peering connection between the hub and spoke virtual networks
 
 
-````
+````bash
 az network vnet peering create \
     --resource-group $RG  \
     --name hub-to-spoke \
@@ -265,7 +262,7 @@ az network vnet peering create \
 ### Create a peering connection between the spoke and hub virtual networks
 
 
-````
+````bash
 az network vnet peering create \
     --resource-group $RG  \
     --name spoke-to-hub \
@@ -278,7 +275,7 @@ az network vnet peering create \
 ### Create a public IP address for the bastion host
 
 
-````
+````bash
 az network public-ip create \
     --resource-group $RG  \
     --name Bastion-PIP \
@@ -289,7 +286,7 @@ az network public-ip create \
 
 ### Create JumpBox host
 
-````
+````bash
 az vm create \
     --resource-group $RG \
     --name Jumpbox-VM \
@@ -310,7 +307,7 @@ az vm create \
 
 
 
-````
+````bash
 az network bastion create \
     --resource-group $RG \
     --name bastionhost \
@@ -335,7 +332,7 @@ For additional information on accessing VMs through Bastion, please refer to thi
 ### Create an Azure Firewall in the Azure firewall subnet
 
 
-````
+````bash
 az network firewall create \
     --resource-group $RG \
     --name $FW_NAME \
@@ -345,7 +342,7 @@ az network firewall create \
 
 ````
 
-````
+````bash
 az network public-ip create \
     --name fw-pip \
     --resource-group $RG \
@@ -355,7 +352,7 @@ az network public-ip create \
 
 ````
 
-````
+````bash
 az network firewall ip-config create \
     --firewall-name $FW_NAME \
     --name FW-config \
@@ -365,7 +362,7 @@ az network firewall ip-config create \
 
 ````
 
-````
+````bash
 az network firewall update \
     --name $FW_NAME \
     --resource-group $RG 
@@ -375,15 +372,15 @@ az network firewall update \
 ### Create Azure firewall network rules    
 
 
-````
+````bash
 az network firewall network-rule create -g $RG -f $FW_NAME --collection-name 'aksfwnr' -n 'apiudp' --protocols 'UDP' --source-addresses '*' --destination-addresses "AzureCloud.$LOCATION" --destination-ports 1194 --action allow --priority 100
 ````
 
-````
+````bash
 az network firewall network-rule create -g $RG -f $FW_NAME --collection-name 'aksfwnr' -n 'apitcp' --protocols 'TCP' --source-addresses '*' --destination-addresses "AzureCloud.$LOCATION" --destination-ports 9000
 ````
 
-````
+````bash
 az network firewall network-rule create -g $RG -f $FW_NAME --collection-name 'aksfwnr' -n 'time' --protocols 'UDP' --source-addresses '*' --destination-fqdns 'ntp.ubuntu.com' --destination-ports 123
 
 ````
@@ -391,7 +388,7 @@ az network firewall network-rule create -g $RG -f $FW_NAME --collection-name 'ak
 ### Create Azure firewall application rules
 
 
-````
+````bash
 az network firewall application-rule create -g $RG -f $FW_NAME --collection-name 'aksfwar' -n 'fqdn' --source-addresses '*' --protocols 'http=80' 'https=443' --fqdn-tags "AzureKubernetesService" --action allow --priority 100
 
 ````
@@ -399,7 +396,7 @@ az network firewall application-rule create -g $RG -f $FW_NAME --collection-name
 ### Create a route table for the spoke virtual network
 
 
-````
+````bash
 az network route-table create \
     --resource-group $RG  \
     --name $ROUTE_TABLE_NAME
@@ -407,7 +404,7 @@ az network route-table create \
 ````
 
 ### Create a route to the internet via the Azure Firewall
-````
+````bash
  fw_private_ip=$(az network firewall show \
     --resource-group $RG \
     --name $FW_NAME \
@@ -416,7 +413,7 @@ az network route-table create \
 ````
 
 
-````
+````bash
 az network route-table route create \
     --resource-group $RG  \
     --name default-route \
@@ -430,7 +427,7 @@ az network route-table route create \
 ### Associate the route table with the aks-subnet
 
 
-````
+````bash
 az network vnet subnet update \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
@@ -442,7 +439,7 @@ az network vnet subnet update \
 ### Create a user-assigned managed identity
 
 
-````
+````bash
 az identity create \
     --resource-group $RG \
     --name $AKS_IDENTITY_NAME
@@ -450,7 +447,7 @@ az identity create \
 ````
 
 ### Get the id of the user managed identity
-````
+````bash
  identity_id=$(az identity show \
     --resource-group $RG \
     --name $AKS_IDENTITY_NAME \
@@ -460,7 +457,7 @@ az identity create \
 ````
 
 ### Get the principal id of the user managed identity
-````
+````bash
 principal_id=$(az identity show \
     --resource-group $RG \
     --name $AKS_IDENTITY_NAME \
@@ -471,16 +468,17 @@ principal_id=$(az identity show \
 
 ### Get the scope of the routing table
 
+````bash
 rt_scope=$(az network route-table show \
     --resource-group $RG \
     --name $ROUTE_TABLE_NAME  \
     --query id \
     --output tsv)
-
+````
 ### Assign permissions for the AKS user defined managed identity to the routing table
 
 
-````
+````bash
 az role assignment create \
     --assignee $principal_id \
     --scope $rt_scope \
@@ -489,48 +487,53 @@ az role assignment create \
 ````
 ### Assign permission for the AKS user defined managed identity to the load balancer subnet
 
-````
-lb_scope=$(az network vnet list \
+````bash
+lb_subnet_scope=$(az network vnet subnet list \
     --resource-group $RG \
     --vnet-name $SPOKE_VNET_NAME \
     --query "[?name=='$LOADBALANCER_SUBNET_NAME'].id" \
     --output tsv)
+````
 
-
+````bash
 az role assignment create \
     --assignee $principal_id \
-    --scope $lb_scope \
+    --scope $lb_subnet_scope \
     --role "Network Contributor"
 
 ````
 > **_! Note:_**
-In the context of Azure Kubernetes Service (AKS), granting the Network Contributor role to the load balancer subnet could potentially result in over-privileged access. This means that AKS may have more permissions than it actually requires for its operations. 
+In the context of Azure Kubernetes Service (AKS), granting the Network Contributor role to the load balancer subnet could potentially result in over-privileged access. To adhere to the principle of least privilege access, it is recommended to only provide AKS with the necessary permissions it needs to function effectively. This approach minimizes potential security risks by limiting the access rights of AKS to the bare minimum required for it to perform its tasks. For more information refer to [Creating Azure custom role](./docs/customrole.md)
 
-To adhere to the principle of least privilege access, it is recommended to only provide AKS with the necessary permissions it needs to function effectively. This approach minimizes potential security risks by limiting the access rights of AKS to the bare minimum required for it to perform its tasks. For more information refer to ./docs/customrole.md
 
 
 ### Create the AKS cluster in the aks-subnet
 
-
+````bash
+aks_subnet_scope=$(az network vnet subnet list \
+    --resource-group $RG \
+    --vnet-name $SPOKE_VNET_NAME \
+    --query "[?name=='$AKS_SUBNET_NAME'].id" \
+    --output tsv)
 ````
-az aks create --resource-group $RG --node-count 3 --vnet-subnet-id /subscriptions/0b6cb75e-8bb1-426b-8c7e-acd7c7599495/resourceGroups/$RG/providers/Microsoft.Network/virtualNetworks/$SPOKE_VNET_NAME/subnets/$AKS_SUBNET_NAME  --enable-aad --enable-azure-rbac --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
+
+````bash
+az aks create --resource-group $RG --node-count 3 --vnet-subnet-id $aks_subnet_scope --enable-aad --enable-azure-rbac --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
 
 ````
 
 ### Link the the hub network to the private DNS zone. 
 
-DNS_ZONE_NAME=$(
-
-````
-az network private-dns zone list --resource-group $NODE_GROUP --query "[0].name" -o tsv)
+````bash
+DNS_ZONE_NAME=$(az network private-dns zone list --resource-group $NODE_GROUP --query "[0].name" -o tsv)
 HUB_VNET_ID=$(
 ````
 
-````
+````bash
 az network vnet show -g $RG -n $HUB_VNET_NAME --query id --output tsv)
 ````
 
-````
+````bash
 az network private-dns link vnet create --name "hubnetdnsconfig" --registration-enabled false --resource-group $NODE_GROUP --virtual-network $HUB_VNET_ID --zone-name $DNS_ZONE_NAME 
 
 ````
@@ -538,7 +541,7 @@ az network private-dns link vnet create --name "hubnetdnsconfig" --registration-
 ### create ACR 
 
 
-````
+````bash
 az acr create \
     --resource-group $RG \
     --name acraksbl \
@@ -553,17 +556,17 @@ az acr create \
 ### Disable network policies in subnet
 
 
-````
+````bash
 az network vnet subnet update \
  --name $ENDPOINTS_SUBNET_NAME \
  --vnet-name $SPOKE_VNET_NAME\
  --resource-group $RG \
  --disable-private-endpoint-network-policies
- 
-#Configure the private DNS zone
-````
 
 ````
+### Configure the private DNS zone
+
+````bash
 az network private-dns zone create \
   --resource-group $RG \
   --name "privatelink.azurecr.io"
@@ -573,7 +576,7 @@ az network private-dns zone create \
 ### Create a virtual network association link
  
 
-````
+````bash
 az network private-dns link vnet create \
   --resource-group $RG \
   --zone-name "privatelink.azurecr.io" \
@@ -581,9 +584,9 @@ az network private-dns link vnet create \
   --virtual-network $SPOKE_VNET_NAME \
   --registration-enabled false
  
-  ````
-
 ````
+
+````bash
 az network private-dns link vnet create \
   --resource-group $RG \
   --zone-name "privatelink.azurecr.io" \
@@ -594,15 +597,13 @@ az network private-dns link vnet create \
 ````
 
 ### Create a private registry endpoint 
-REGISTRY_ID=$(
-
-````
-az acr show --name acraksbl \
+````bash
+REGISTRY_ID=$(az acr show --name acraksbl \
   --query 'id' --output tsv)
 
 ````
 
-````
+````bash
 az network private-endpoint create \
     --name ACRPrivateEndpoint \
     --resource-group $RG \
@@ -616,10 +617,8 @@ az network private-endpoint create \
 #### Configure DNS record 
 
 ### get endpoint IP configuration
-NETWORK_INTERFACE_ID=$(
-
-````
-az network private-endpoint show \
+````bash
+NETWORK_INTERFACE_ID=$(az network private-endpoint show \
   --name ACRPrivateEndpoint \
   --resource-group $RG \
   --query 'networkInterfaces[0].id' \
@@ -627,45 +626,33 @@ az network private-endpoint show \
 
  ```` 
 
-### fetch the container registry private IP address
-REGISTRY_PRIVATE_IP=$(
-
+### Fetch the container registry private IP address
+````bash
+REGISTRY_PRIVATE_IP=$(az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry'].privateIPAddress" -o tsv)
 ````
-az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry'].privateIPAddress" -o tsv)
-````
-### fetch the data endpoint IP address of the container registry
-
-DATA_ENDPOINT_PRIVATE_IP=$(
-
-````
-az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry_data_westeurope'].privateIPAddress" -o tsv)
+### Fetch the data endpoint IP address of the container registry
+````bash
+DATA_ENDPOINT_PRIVATE_IP=$(az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry_data_westeurope'].privateIPAddress" -o tsv)
 ````
 
-### fetch the FQDN associated with the registry and data endpoint
-
-REGISTRY_FQDN=$(
-
-````
-az network nic show \
+### Fetch the FQDN associated with the registry and data endpoint
+````bash
+REGISTRY_FQDN=$(az network nic show \
   --ids $NETWORK_INTERFACE_ID \
   --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry'].privateLinkConnectionProperties.fqdns" \
   --output tsv)
 ````
-DATA_ENDPOINT_FQDN=$(
-
-````
-az network nic show \
+````bash
+DATA_ENDPOINT_FQDN=$(az network nic show \
   --ids $NETWORK_INTERFACE_ID \
   --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry_data_westeurope'].privateLinkConnectionProperties.fqdns" \
   --output tsv)
 ````
 
 
-#Create DNS records in the private zone
+### Create DNS records in the private zone
 
-
-
-````
+````bash
 az network private-dns record-set a create \
   --name acraksbl \
   --zone-name privatelink.azurecr.io \
@@ -675,8 +662,7 @@ az network private-dns record-set a create \
 
 ### Specify registry region in data endpoint name
 
-
-````
+````bash
 az network private-dns record-set a create \
   --name acraksbl.westeurope.data \
   --zone-name privatelink.azurecr.io \
@@ -686,9 +672,7 @@ az network private-dns record-set a create \
   
 ### create the A records for the registry endpoint and data endpoint
 
-
-
-````
+````bash
 az network private-dns record-set a add-record \
   --record-set-name acraksbl \
   --zone-name privatelink.azurecr.io \
@@ -699,8 +683,7 @@ az network private-dns record-set a add-record \
 
 ### Specify registry region in data endpoint name
 
-
-````
+````bash
 az network private-dns record-set a add-record \
   --record-set-name acraksbl.westeurope.data \
   --zone-name privatelink.azurecr.io \
@@ -709,19 +692,19 @@ az network private-dns record-set a add-record \
 
 ````
 
-#### Create Application Gateway
+## Create Application Gateway
 
 ### Create public IP address with a domain name associated to the PIP resource
 
 
-````
+````bash
 az network public-ip create -g $RG -n AGPublicIPAddress --dns-name mvcnstudent01 --allocation-method Static --sku Standard --location westeurope
 ````
 
 ### Create WAF policy 
 
 
-````
+````bash
 az network application-gateway waf-policy create --name ApplicationGatewayWAFPolicy --resource-group $RG
 ````
 
@@ -729,7 +712,7 @@ az network application-gateway waf-policy create --name ApplicationGatewayWAFPol
 
   
 
-````
+````bash
 az network application-gateway create \
   --name AppGateway \
   --location westeurope \
@@ -750,7 +733,7 @@ az network application-gateway create \
   --servers 10.1.3.4
 ````
 ### Create Health probe
-````
+````bash
  az network application-gateway probe create \
     --gateway-name AppGateway \
     --resource-group rg_baseline \
@@ -764,6 +747,6 @@ az network application-gateway create \
 ````
 
 ### Associate the health probe to the backend pool.
-````
+````bash
 az network application-gateway http-settings update -g rg_baseline --gateway-name AppGateway -n appGatewayBackendHttpSettings --probe health-probe
 ````
