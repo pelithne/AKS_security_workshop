@@ -25,6 +25,7 @@ FW_NAME=azure-firewall
 ROUTE_TABLE_NAME=spoke-rt
 AKS_IDENTITY_NAME=aks-msi
 JUMPBOX_VM_NAME=Jumpbox-VM
+AKS_CLUSTER_NAME=private-aks
 
 ````
 
@@ -523,19 +524,23 @@ aks_subnet_scope=$(az network vnet subnet list \
 ````
 
 ````bash
-az aks create --resource-group $RG --node-count 3 --vnet-subnet-id $aks_subnet_scope --name private-aks --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
+az aks create --resource-group $RG --node-count 3 --vnet-subnet-id $aks_subnet_scope --name $AKS_CLUSTER_NAME --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
 
 ````
 
 ### Link the the hub network to the private DNS zone. 
 
 ````bash
-DNS_ZONE_NAME=$(az network private-dns zone list --resource-group $NODE_GROUP --query "[0].name" -o tsv)
-HUB_VNET_ID=$(
+NODE_GROUP=$(az aks show --resource-group $RG --name $AKS_CLUSTER_NAME --query nodeResourceGroup -o tsv)
 ````
 
 ````bash
-az network vnet show -g $RG -n $HUB_VNET_NAME --query id --output tsv)
+DNS_ZONE_NAME=$(az network private-dns zone list --resource-group $NODE_GROUP --query "[0].name" -o tsv)
+
+````
+
+````bash
+HUB_VNET_ID=$(az network vnet show -g $RG -n $HUB_VNET_NAME --query id --output tsv)
 ````
 
 ````bash
@@ -543,7 +548,45 @@ az network private-dns link vnet create --name "hubnetdnsconfig" --registration-
 
 ````
 
-### create ACR 
+### Verify AKS control plane connectivity
+
+In this section we will verify that we are able to connect to the AKS cluster from the jumpbox, firstly we need to connect to the cluster successfully and secondly we need to verify that the kubernetes client is able to communicate with the AKS control plane. 
+
+1) Navigate to the Azure portal at **portal.azure.com** and enter your login credentials.
+2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
+3) Within your resource group, find and click on the **Jumpbox VM**.
+4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
+5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully.
+6) Once successfully logged in to the jumbox **login to Azure** in order to obtain AKS credentials.
+
+````bash
+az login
+````
+
+> **_! Note:_**
+To check the current subscription, run the command: **az account show**
+To change the subscription, run the command: **az account set --subscription <SUBSCRIPTION ID>, where <SUBSCRIPTION ID>** is the ID of the desired subscription. You can find the subscription ID by running the command: **az account list --output table**
+
+7) Download the credentials
+
+````bash
+az aks get-credentials --resource-group $RG --name $AKS_CLUSTER_NAME
+````
+8) Ensure you can list resources in AKS.
+
+````bash
+kubectl get nodes
+````
+The following output shows the result of running the command kubectl get nodes on the Azure CLI.
+
+````bash
+azureuser@Jumpbox-VM:~$ kubectl get nodes
+NAME                                STATUS   ROLES   AGE   VERSION
+aks-nodepool1-33590162-vmss000000   Ready    agent   11h   v1.26.6
+aks-nodepool1-33590162-vmss000001   Ready    agent   11h   v1.26.6
+aks-nodepool1-33590162-vmss000002   Ready    agent   11h   v1.26.6
+````
+### Create ACR 
 
 
 ````bash
