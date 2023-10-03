@@ -597,17 +597,17 @@ To change the subscription, run the command: **az account set --subscription <SU
 7) Download the credentials
 
 ````bash
-az aks get-credentials --resource-group $RG --name $AKS_CLUSTER_NAME
+sudo az aks get-credentials --resource-group $RG --name $AKS_CLUSTER_NAME
 ````
 8) Ensure you can list resources in AKS.
 
 ````bash
-kubectl get nodes
+sudo kubectl get nodes
 ````
 The following output shows the result of running the command kubectl get nodes on the Azure CLI.
 
 ````bash
-azureuser@Jumpbox-VM:~$ kubectl get nodes
+azureuser@Jumpbox-VM:~$ sudo kubectl get nodes
 NAME                                STATUS   ROLES   AGE   VERSION
 aks-nodepool1-33590162-vmss000000   Ready    agent   11h   v1.26.6
 aks-nodepool1-33590162-vmss000001   Ready    agent   11h   v1.26.6
@@ -957,3 +957,105 @@ az network application-gateway create \
 ````bash
 az network application-gateway http-settings update -g $RG --gateway-name $APPGW_NAME -n appGatewayBackendHttpSettings --probe health-probe
 ````
+
+### Attach Kubernetes
+````bash
+az aks update \
+    --resource-group $RG \
+    --name $AKS_CLUSTER_NAME \
+    --attach-acr $ACR_NAME
+````
+### Validate AKS is able to pull images from ACR
+On the Jumpbox VM create a yaml file.
+
+````bash
+touch test-pod.yaml
+vim test-pod.yaml
+````
+Paste in the following manifest file which creates a Pod named **internal-test-app** which fetches the docker images from our internal container registry, created in previous step. 
+````yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: internal-test-app
+  labels:
+    app: internal-test-app
+spec:
+  containers:
+  - name: nginx
+    image: acraksbl.azurecr.io/nginx
+    ports:
+    - containerPort: 80
+````
+Create the pod.
+````yaml
+kubectl create -f test-pod.yaml
+````
+````yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: internal-test-app
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "<LOADBALANCER SUBNET NAME>"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: internal-test-app
+````
+Verify that the Pod is in running state.
+````bash
+sudo kubectl get po --show-labels
+````
+Example output
+
+````bash
+azureuser@Jumpbox-VM:~$ sudo kubectl get po 
+NAME                READY   STATUS    RESTARTS   AGE
+internal-test-app   1/1     Running   0          8s
+````
+Our next step is to set up an internal load balancer that will direct the traffic to our intern Pod. The internal load balancer will be deployed in the load balancer subnet of the spoke-vnet.
+
+````yaml
+touch internal-app-service.yaml
+vim internal-app-service.yaml
+````
+````yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: internal-test-app-service
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "<LOADBALANCER SUBNET>"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: internal-test-app
+````
+Deploy the service object in AKS.
+
+````
+sudo kubectl create -f internal-app-service.yaml
+````
+Verify that your service object is created and associated with the Pod that you have created, also ensure that you have recieved an external IP, which should be a private IP address range from the load balancer subnet.
+
+````
+sudo kubectl get svc -o wide
+````
+Example output:
+
+````
+azureuser@Jumpbox-VM:~$ sudo kubectl get svc -o wide
+NAME                        TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE   SELECTOR
+internal-test-app-service   LoadBalancer   10.0.252.53   10.1.3.4      80:30161/TCP   39s   app=internal-test-app
+kubernetes                  ClusterIP      10.0.0.1      <none>        443/TCP        43h   <none>
+azureuser@Jumpbox-VM:~$ 
+````
+
+Now access your domain: <STUDENT NAME>.akssecurity.se
