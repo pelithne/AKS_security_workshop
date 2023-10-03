@@ -22,10 +22,12 @@ APPGW_NSG=Appgw_NSG
 SPOKE_VNET_PREFIX=10.1.0.0/16
 SPOKE_VNET_NAME=Spoke_VNET
 FW_NAME=azure-firewall
+APPGW_NAME=AppGateway
 ROUTE_TABLE_NAME=spoke-rt
 AKS_IDENTITY_NAME=aks-msi
 JUMPBOX_VM_NAME=Jumpbox-VM
 AKS_CLUSTER_NAME=private-aks
+ACR_NAME=acraksbl
 
 ````
 
@@ -192,6 +194,30 @@ az network nsg create \
     --resource-group $RG \
     --name $APPGW_NSG \
     --location $LOCATION
+
+# Allow Internet Client request on Port 443 and 80
+az network nsg rule create \
+    --resource-group $RG \
+    --nsg-name $APPGW_NSG \
+    --name Allow-Internet-Inbound-HTTP-HTTPS \
+    --priority 100 \
+    --source-address-prefixes Internet \
+    --destination-port-ranges 80 443 \
+    --access Allow \
+    --protocol Tcp \
+    --description "Allow inbound traffic to port 80 and 443 to Application Gateway from client requests originating from the Internet"
+
+# Infrastructure ports
+az network nsg rule create \
+    --resource-group $RG \
+    --nsg-name $APPGW_NSG \
+    --name Allow-GatewayManager-Inbound \
+    --priority 110 \
+    --source-address-prefixes "GatewayManager" \
+    --destination-port-ranges 65200-65535 \
+    --access Allow \
+    --protocol Tcp \
+    --description "Allow inbound traffic to ports 65200-65535 from GatewayManager service tag"
 ````
 
 
@@ -560,7 +586,8 @@ In this section we will verify that we are able to connect to the AKS cluster fr
 6) Once successfully logged in to the jumbox **login to Azure** in order to obtain AKS credentials.
 
 ````bash
-az login
+sudo az login
+sudo az account set --subscription <SUBSCRIPTION ID>
 ````
 
 > **_! Note:_**
@@ -592,7 +619,7 @@ aks-nodepool1-33590162-vmss000002   Ready    agent   11h   v1.26.6
 ````bash
 az acr create \
     --resource-group $RG \
-    --name acraksbl \
+    --name $ACR_NAME \
     --sku Premium \
     --admin-enabled false \
     --location westeurope \
@@ -621,10 +648,12 @@ az network private-dns zone create \
 
 ````
 
-### Create a virtual network association link
+### Create a virtual network association link 
  
 
+
 ````bash
+# creates a virtual network link to the spoke network
 az network private-dns link vnet create \
   --resource-group $RG \
   --zone-name "privatelink.azurecr.io" \
@@ -635,6 +664,7 @@ az network private-dns link vnet create \
 ````
 
 ````bash
+# Creates a virtual network link to the hub network
 az network private-dns link vnet create \
   --resource-group $RG \
   --zone-name "privatelink.azurecr.io" \
@@ -646,7 +676,7 @@ az network private-dns link vnet create \
 
 ### Create a private registry endpoint 
 ````bash
-REGISTRY_ID=$(az acr show --name acraksbl \
+REGISTRY_ID=$(az acr show --name $ACR_NAME \
   --query 'id' --output tsv)
 
 ````
@@ -664,7 +694,7 @@ az network private-endpoint create \
 
 #### Configure DNS record 
 
-### get endpoint IP configuration
+### Get endpoint IP configuration
 ````bash
 NETWORK_INTERFACE_ID=$(az network private-endpoint show \
   --name ACRPrivateEndpoint \
@@ -702,7 +732,7 @@ DATA_ENDPOINT_FQDN=$(az network nic show \
 
 ````bash
 az network private-dns record-set a create \
-  --name acraksbl \
+  --name $ACR_NAME \
   --zone-name privatelink.azurecr.io \
   --resource-group $RG
 
@@ -712,7 +742,7 @@ az network private-dns record-set a create \
 
 ````bash
 az network private-dns record-set a create \
-  --name acraksbl.westeurope.data \
+  --name $ACR_NAME.westeurope.data \
   --zone-name privatelink.azurecr.io \
   --resource-group $RG
 
@@ -722,7 +752,7 @@ az network private-dns record-set a create \
 
 ````bash
 az network private-dns record-set a add-record \
-  --record-set-name acraksbl \
+  --record-set-name $ACR_NAME \
   --zone-name privatelink.azurecr.io \
   --resource-group $RG \
   --ipv4-address $REGISTRY_PRIVATE_IP
@@ -733,20 +763,149 @@ az network private-dns record-set a add-record \
 
 ````bash
 az network private-dns record-set a add-record \
-  --record-set-name acraksbl.westeurope.data \
+  --record-set-name $ACR_NAME.westeurope.data \
   --zone-name privatelink.azurecr.io \
   --resource-group $RG \
   --ipv4-address $DATA_ENDPOINT_PRIVATE_IP
 
 ````
 
+### Test the connection to ACR
+
+In this section, you will learn how to check if you can access your private Azure Container Registry (ACR) and push Docker images to it. You will need to have the Azure CLI installed and logged in to your Azure account. You will also need to have Docker installed and running on your Jumpbox. Here are the steps to follow:
+
+1) Navigate to the Azure portal at **portal.azure.com** and enter your login credentials.
+2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
+3) Within your resource group, find and click on the **Jumpbox VM**.
+4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
+5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully.
+6) Once successfully logged in to the jumpbox **login to Azure** if you have not already done so in previous steps.
+
+````bash
+sudo az login
+````
+Identify your subscription id from the list, if you have several subscriptions.
+
+````bash
+az account list -o table
+````
+Set your subscription id to be the default subscription.
+````bash
+sudo az account set --subscription <SUBSCRIPTION ID>
+````
+7. Validate private link connection 
+
+List your ACR in your subscription and note down the ACR name.
+````bash
+sudo az acr list -o table
+````
+````bash
+dig <REGISTRY NAME>.azurecr.io
+````
+Example output shows the registry's private IP address in the address space of the subnet:
+````dns
+azureuser@Jumpbox-VM:~$ dig acraksbl.azurecr.io
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> acraksbl.azurecr.io
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 39202
+;; flags: qr rd ra; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 65494
+;; QUESTION SECTION:
+;acraksbl.azurecr.io.INA
+
+;; ANSWER SECTION:
+acraksbl.azurecr.io.60INCNAMEacraksbl.privatelink.azurecr.io.
+acraksbl.privatelink.azurecr.io. 1800 IN A10.1.2.5
+
+;; Query time: 8 msec
+;; SERVER: 127.0.0.53#53(127.0.0.53) (UDP)
+;; WHEN: Mon Oct 02 07:51:55 UTC 2023
+;; MSG SIZE  rcvd: 99
+````
+7. Create a Dockerfile, build the docker image, authenticate towards ACR and push the image to the container registry.
+````bash
+touch Dockerfile
+vim Dockerfile
+````
+Add the following content to the Dockerfile
+
+````bash
+FROM nginx
+EXPOSE 80
+CMD [“nginx”, “-g”, “daemon off;”
+````
+Build the Docker image
+
+````bash
+sudo docker build --tag nginx .
+````
+Example out:
+````bash
+azureuser@Jumpbox-VM:~$ sudo docker build --tag nginx .
+
+Sending build context to Docker daemon  222.7kB
+Step 1/3 : FROM nginx
+latest: Pulling from library/nginx
+a803e7c4b030: Pull complete 
+8b625c47d697: Pull complete 
+4d3239651a63: Pull complete 
+0f816efa513d: Pull complete 
+01d159b8db2f: Pull complete 
+5fb9a81470f3: Pull complete 
+9b1e1e7164db: Pull complete 
+Digest: sha256:32da30332506740a2f7c34d5dc70467b7f14ec67d912703568daff790ab3f755
+Status: Downloaded newer image for nginx:latest
+ ---> 61395b4c586d
+Step 2/3 : EXPOSE 80
+ ---> Running in d7267ee641b6
+Removing intermediate container d7267ee641b6
+ ---> 06a5ac2e4ba6
+Step 3/3 : CMD [“nginx”, “-g”, “daemon off;”]
+ ---> Running in c02c94dc283c
+Removing intermediate container c02c94dc283c
+ ---> 49a47448ba86
+Successfully built 49a47448ba86
+Successfully tagged nginx:latest
+````
+Create an alias of the image
+````bash
+sudo docker tag nginx <CONTAINER REGISTRY NAME>.azurecr.io/nginx
+````
+Authenticate to ACR.
+````bash
+sudo az acr login --name <CONTAINER REGISTRY NAME>
+````
+Upload the docker image to the ACR repository.
+````bash
+sudo docker push <CONTAINER REGISTRY NAME>.azurecr.io/nginx
+````
+Example output:
+
+````bash
+azureuser@Jumpbox-VM:~$ sudo docker push acraksbl.azurecr.io/nginx
+Using default tag: latest
+The push refers to repository [acraksbl.azurecr.io/nginx]
+d26d4f0eb474: Pushed 
+a7e2a768c198: Pushed 
+9c6261b5d198: Pushed 
+ea43d4f82a03: Pushed 
+1dc45c680d0f: Pushed 
+eb7e3384f0ab: Pushed 
+d310e774110a: Pushed 
+latest: digest: sha256:3dc6726adf74039f21eccf8f3b5de773080f8183545de5a235726132f70aba63 size: 1778
+````
 ## Create Application Gateway
 
 ### Create public IP address with a domain name associated to the PIP resource
 
 
 ````bash
-az network public-ip create -g $RG -n AGPublicIPAddress --dns-name mvcnstudent01 --allocation-method Static --sku Standard --location westeurope
+az network public-ip create -g $RG -n AGPublicIPAddress --dns-name mvcnstudent02 --allocation-method Static --sku Standard --location westeurope
+
 ````
 
 ### Create WAF policy 
@@ -764,8 +923,8 @@ az network application-gateway waf-policy create --name ApplicationGatewayWAFPol
 az network application-gateway create \
   --name AppGateway \
   --location westeurope \
-  --resource-group rg_baseline \
-  --vnet-name spoke-vnet \
+  --resource-group $RG \
+  --vnet-name $SPOKE_VNET_NAME \
   --subnet $APPGW_SUBNET_NAME \
   --capacity 1 \
   --sku WAF_v2 \
@@ -776,15 +935,15 @@ az network application-gateway create \
   --priority "1" \
   --public-ip-address AGPublicIPAddress \
   --cert-file appgwcert.pfx \
-  --cert-password "<PASSWORD>" \
+  --cert-password "<CERTIFICATE PASSWORD>" \
   --waf-policy ApplicationGatewayWAFPolicy \
   --servers 10.1.3.4
 ````
 ### Create Health probe
 ````bash
  az network application-gateway probe create \
-    --gateway-name AppGateway \
-    --resource-group rg_baseline \
+    --gateway-name $APPGW_NAME \
+    --resource-group $RG \
     --name health-probe \
     --protocol Http \
     --path / \
@@ -796,5 +955,5 @@ az network application-gateway create \
 
 ### Associate the health probe to the backend pool.
 ````bash
-az network application-gateway http-settings update -g rg_baseline --gateway-name AppGateway -n appGatewayBackendHttpSettings --probe health-probe
+az network application-gateway http-settings update -g $RG --gateway-name $APPGW_NAME -n appGatewayBackendHttpSettings --probe health-probe
 ````
