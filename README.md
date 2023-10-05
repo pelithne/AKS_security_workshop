@@ -8,7 +8,13 @@ This workshop is designed for intermediate to advanced Kubernetes users who want
 
 By the end of this workshop, you will have a deeper understanding of how to use AKS to deploy and manage a secure and scalable Kubernetes cluster on Azure. You will also have a working AKS cluster that follows the AKS secure baseline reference architecture.
 
-Let’s get started!
+![Screenshot](images/aks-baseline-architecture.jpg)
 
 
+## 1.2 Target Architecture
+
+Throughout the workshop, this is the target architecture we will aim to create:
+all procedures will be conducted by using Azure CLI.
+
+![Screenshot](images/aks-baseline-architecture-workshop.jpg)
 
