@@ -3,8 +3,8 @@
 
 ````bash
 RG=AKS_Security_RG
-LOCATION=westeurope # NOTE for this exercise use "westeurope"  as region
-HUB_VNET_PREFIX=10.0.0.0/16 # IP range of the hub virtual network
+LOCATION=westeurope 
+HUB_VNET_PREFIX=10.0.0.0/16 
 HUB_VNET_NAME=Hub_VNET
 FW_SUBNET_NAME=AzureFirewallSubnet
 BASTION_SUBNET_NAME=AzureBastionSubnet
