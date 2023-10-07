@@ -6,7 +6,7 @@ The AKS baseline is a reference architecture that provides a set of best practic
 
 ## 2.2 IP Plan
 
-IP planning is an important aspect of deploying an AKS cluster and Azure services in general, as it affects the scalability, performance, security, and availability of the cluster and its workloads. IP planning involves choosing the right network topology, IP address ranges, subnet sizes, and network policies for the cluster and its nodes, pods, and services. For more information on IP planning for an AKS cluster, see [Plan IP addressing for your cluster](^1^), [AKS baseline for multiregion clusters](^2^), [Best practices for network resources in AKS](^4^), and [Network architecture for AKS on Azure Stack HCI](^5^).
+IP planning is an important aspect of deploying an AKS cluster and Azure services in general, as it affects the scalability, performance, security, and availability of the cluster and its workloads. IP planning involves choosing the right network topology, IP address ranges, subnet sizes, and network policies for the cluster and its nodes, pods, and services. For more information on IP planning for an AKS cluster, see [Plan IP addressing for your cluster](https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/containers/aks/baseline-aks#plan-the-ip-addresses) and [Best practices for network resources in AKS](https://learn.microsoft.com/en-us/azure/aks/operator-best-practices-network).
 
 
 This is the proposed IP design that we will adhere to throughout the documentation.
