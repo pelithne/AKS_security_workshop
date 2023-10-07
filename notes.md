@@ -40,7 +40,7 @@ az group create --name $RG --location westeurope
 
 ### Create Network Security Group (NSG) for the Hub.
 
-//TODO: create a script that performs the actions below.
+
 
 In this step, we will begin by establishing a Network Security Group (NSG) that will subsequently be associated with the AzureBastionSubnet. It is crucial to note that there are specific prerequisites concerning security rules that must be met before Azure Bastion can be deployed.
 
@@ -361,8 +361,10 @@ Upon successful installation of the Jumpbox Virtual Machine (VM), the next step 
 
 For additional information on accessing VMs through Bastion, please refer to this [Microsoft Azure Bastion tutorial](https://learn.microsoft.com/en-us/azure/bastion/create-host-cli#steps)
 
-### Create an Azure Firewall in the Azure firewall subnet
+### Create an Azure Firewall and setup a UDR
 
+
+To secure your AKS outbound traffic, you need to follow these steps for a basic cluster deployment. These steps will help you restrict the outbound access to only certain FQDNs that are needed by the cluster.
 
 ````bash
 az network firewall create \
@@ -418,7 +420,7 @@ az network firewall network-rule create -g $RG -f $FW_NAME --collection-name 'ak
 ````
 
 ### Create Azure firewall application rules
-
+This rules specifies the FQDN's which are required by AKS, **AzureKubernetesService** tag which include all the FQDNs listed in Outbound network and FQDN rules for AKS clusters.
 
 ````bash
 az network firewall application-rule create -g $RG -f $FW_NAME --collection-name 'aksfwar' -n 'fqdn' --source-addresses '*' --protocols 'http=80' 'https=443' --fqdn-tags "AzureKubernetesService" --action allow --priority 100
