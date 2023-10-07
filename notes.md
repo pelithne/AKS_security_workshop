@@ -146,7 +146,7 @@ az network vnet create \
     --name $HUB_VNET_NAME \
     --address-prefixes $HUB_VNET_PREFIX \
     --subnet-name $BASTION_SUBNET_NAME \
-    --subnet-prefixes 10.0.1.0/24 \
+    --subnet-prefixes $BASTION_SUBNET_PREFIX \
     --network-security-group $BASTION_NSG_NAME
 
 ````
@@ -158,7 +158,7 @@ az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $HUB_VNET_NAME \
     --name $FW_SUBNET_NAME \
-    --address-prefixes 10.0.2.0/24
+    --address-prefixes $FW_SUBNET_PREFIX
 
 ````
 Create subnet for the Virtual Machine that will be used as "jumpbox".
@@ -169,7 +169,7 @@ az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $HUB_VNET_NAME \
     --name $JUMPBOX_SUBNET_NAME \
-    --address-prefixes 10.0.3.0/24 \
+    --address-prefixes $JUMPBOX_SUBNET_PREFIX \
     --network-security-group $JUMPBOX_NSG_NAME
 ````
 
@@ -233,7 +233,7 @@ az network vnet create \
     --name $SPOKE_VNET_NAME \
     --address-prefixes $SPOKE_VNET_PREFIX \
     --subnet-name $AKS_SUBNET_NAME \
-    --subnet-prefixes 10.1.1.0/24 \
+    --subnet-prefixes $AKS_SUBNET_PREFIX \
 	--network-security-group $AKS_NSG_NAME
 
 ````
@@ -246,7 +246,7 @@ az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME  \
     --name $ENDPOINTS_SUBNET_NAME \
-    --address-prefixes 10.1.2.0/24 \
+    --address-prefixes $ENDPOINTS_SUBNET_PREFIX \
 	--network-security-group $ENDPOINTS_NSG_NAME
 
 ````
@@ -258,7 +258,7 @@ az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
     --name $LOADBALANCER_SUBNET_NAME \
-    --address-prefixes 10.1.3.0/24 \
+    --address-prefixes $LOADBALANCER_SUBNET_PREFIX \
 	--network-security-group $LOADBALANCER_NSG_NAME
 ````
 
@@ -269,7 +269,7 @@ az network vnet subnet create \
     --resource-group $RG  \
     --vnet-name $SPOKE_VNET_NAME \
     --name $APPGW_SUBNET_NAME \
-    --address-prefixes 10.1.4.0/24 \
+    --address-prefixes $APPGW_SUBNET_PREFIX \
 	--network-security-group $APPGW_NSG
 
 ````

@@ -22,7 +22,7 @@ Each subnet in AKS baseline has a specific purpose and configuration, further in
 
 - **Azure Firewall Subnet**: This subnet is where the Azure Firewall is deployed. The firewall acts as an egress controller for the AKS cluster, filtering and logging the outbound traffic from the cluster to external resources or services. It also provides network address translation (NAT) functionality, which allows the cluster to access resources that are not reachable by private IP addresses. The subnet size can be small for this particular case, as it only needs to accommodate one firewall instance.
 
-- **Azure Bastion Subnet**: This subnet is where the Azure Bastion service is deployed. Azure Bastion is a fully managed service that provides secure and seamless Remote Desktop Protocol (RDP) and Secure Shell (SSH) access to your virtual machines directly through the Azure portal⁴. This subnet is used for management and operations only, and it does not expose any resources to the internet. The subnet name must be **AzureBastionSubnet**, and the subnet size must be **/26** or larger⁴.
+- **Azure Bastion Subnet**: This subnet is where the Azure Bastion service is deployed. Azure Bastion is a fully managed service that provides secure and seamless Remote Desktop Protocol (RDP) and Secure Shell (SSH) access to your virtual machines directly through the Azure portal⁴. This subnet is used for management and operations only, and it does not expose any resources to the internet. The subnet name must be **AzureBastionSubnet**, and the subnet size must be **/26** or larger.
 
 - **Jump Box Subnet**: This subnet is where the jump server resides, where operation teams can login and access services in the spoke, to perform operations and maintanance.
 
@@ -44,6 +44,9 @@ Each subnet in AKS baseline has a specific purpose and configuration, further in
 1) Let’s use the IP plan to set up some environment variables for the Hub VNet and adjust its configuration accordingly to section 2.2 IP Plan.
 
 ````bash
+HUB_VNET_NAME=Hub_VNET
+FW_SUBNET_NAME=AzureFirewallSubnet
+BASTION_SUBNET_NAME=AzureBastionSubnet
 HUB_VNET_PREFIX= # IP address range of the Virtual network (VNet).
 BASTION_SUBNET_PREFIX= # IP address range of the Bastion subnet 
 FW_SUBNET_PREFIX= # IP address range of the Firewall subnet
@@ -52,9 +55,20 @@ JUMPBOX_SUBNET_PREFIX= # IP address range of the Jumpbox subnet
 2) Configure the spoke according to section 2.2 IP Plan
 
 ````bash
+SPOKE_VNET_NAME=Spoke_VNET
+JUMPBOX_SUBNET_NAME=JumpboxSubnet
+ENDPOINTS_SUBNET_NAME=endpoints-subnet
+APPGW_SUBNET_NAME=app-gw-subnet
+AKS_SUBNET_NAME=aks-subnet
+LOADBALANCER_SUBNET_NAME=loadbalancer-subnet
 SPOKE_VNET_PREFIX= # IP address range of the Virtual network (VNet).
 AKS_SUBNET_PREFIX= # IP address range of the AKS subnet
 LOADBALANCER_SUBNET_PREFIX= # IP address range of the Loadbalancer subnet
 APPGW_SUBNET_PREFIX= # IP address range of the Application Gateway subnet
 ENDPOINTS_SUBNET_PREFIX= # IP address range of the Endpoints subnet
 ````
+
+
+
+
+
