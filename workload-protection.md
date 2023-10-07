@@ -2,9 +2,9 @@
 
 During this activity you will:
 
-* Create an Azure Container Registry (or use an existing one)
+* Build an application and store in Azure Container Registry 
 * Activate OIDC issuer on AKS cluster (or create a new cluster with OIDC activated)
-* Create an Azure Key Vault and secret.
+* Create a secret and store in the Azure Keyvault.
 * Create an Azure Active Directory (Azure AD) managed identity
 * Connect the MI to a Kubernetes service account with token federation
 * Deploy a workload and verify authentication to keyvault with the workload identity
@@ -27,28 +27,13 @@ export ACRNAME=<globally unique name>
 ````
 
 
-### Create reasource group
 
-Skip this step if RG was already created
 
-````
-az group create --name $RESOURCE_GROUP --location $LOCATION
-````
+### Update AKS cluster with OIDC issuer
 
-### Create Container Registry
-
-Skip this step if ACR was already created
 
 ````
- az acr create --resource-group $RESOURCE_GROUP --name $ACRNAME --sku Premium 
-````
-
-### Create cluster with OIDC issuer and calico network policies
-
-Skip this step if AKS cluster was already created
-
-````
-az aks create -g "${RESOURCE_GROUP}" -n myAKSCluster --node-count 1 --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --network-plugin kubenet --network-policy calico --attach-acr $ACRNAME
+az aks update -g "${RESOURCE_GROUP}" -n myAKSCluster  --enable-oidc-issuer 
 
 ````
 
@@ -63,15 +48,9 @@ export AKS_OIDC_ISSUER="$(az aks show -n myAKSCluster -g "${RESOURCE_GROUP}" --q
 The variable should contain the Issuer URL similar to the following:
  ````https://eastus.oic.prod-aks.azure.com/9e08065f-6106-4526-9b01-d6c64753fe02/9a518161-4400-4e57-9913-d8d82344b504/````
 
- ### Create keyvault
+ 
 
-Create a keyvault in the same resource group as the other resources (not neccesary for in to be in the same RG, but for clarity)
-
- ````
- az keyvault create --resource-group "${RESOURCE_GROUP}" --location "${LOCATION}" --name "${KEYVAULT_NAME}"
- ````
-
- ### Add a secret to the vault
+ ### Add a secret to Azure Keyvault
 
 Create a secret in the keyvault. This is the secret that will be used by the frontend application to connect to the (redis) backend.
 
