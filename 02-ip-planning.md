@@ -38,9 +38,10 @@ Each subnet in AKS baseline has a specific purpose and configuration, further in
 - **Azure Application Gateway Subnet**: The load balancer subnet is a part of the network topology that supports the AKS cluster. It is where the internal load balancer (ILB) resides and assigns IP addresses to the services that are exposed within the cluster.
 
 
-### 2.2.3 Prepare Environment Variables for HUB VNET
+### 2.2.3 Prepare Environment Variables for HUB VNET and SPOKE VNET
 
-Let’s use the IP plan to set up some environment variables for the Hub VNet and adjust its configuration accordingly to section 2.2 IP Plan.
+
+1) Let’s use the IP plan to set up some environment variables for the Hub VNet and adjust its configuration accordingly to section 2.2 IP Plan.
 
 ````bash
 HUB_VNET_PREFIX= # IP address range of the Virtual network (VNet).
@@ -48,10 +49,7 @@ BASTION_SUBNET_PREFIX= # IP address range of the Bastion subnet
 FW_SUBNET_PREFIX= # IP address range of the Firewall subnet
 JUMPBOX_SUBNET_PREFIX= # IP address range of the Jumpbox subnet
 ````
-
-### 2.2.4 Prepare Environment Variables for SPOKE VNET
-
-Configure the spoke according to section 2.2 IP Plan
+2) Configure the spoke according to section 2.2 IP Plan
 
 ````bash
 SPOKE_VNET_PREFIX= # IP address range of the Virtual network (VNet).
