@@ -204,7 +204,7 @@ Create a User Managed Identity. We will give this identity *GET access* to the k
 First, connect to the cluster if not already connected
  
  ````
- az aks get-credentials -n $AKS_CLUSTER_NAME -g $RESOURCE_GROUP
+ az aks get-credentials -n $AKS_CLUSTER_NAME -g $RG
  ````
 
 #### Create service account
