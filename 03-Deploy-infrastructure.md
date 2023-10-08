@@ -631,8 +631,458 @@ aks-nodepool1-33590162-vmss000000   Ready    agent   11h   v1.26.6
 aks-nodepool1-33590162-vmss000001   Ready    agent   11h   v1.26.6
 aks-nodepool1-33590162-vmss000002   Ready    agent   11h   v1.26.6
 ````
+10.9) log out from the Jumpbox host.
 
 Congratulations! You have completed the steps to deploy a private AKS cluster and configure its network settings. You have assigned a user assigned identity to the cluster that has the required permissions to modify the user-defined routing table and load balancer subnet. You have also created a virtual network link between the hub virtual network and the private DNS zone of the cluster. This enables the jumpbox to resolve the private API server of the cluster and access it for management and maintenance purposes.
 
 ![Screenshot](/images/hubandspokewithpeeringBastionJumpboxFirewallaksvirtualnetlink.jpg)
 ![Screenshot](/images/aksjumpbox.jpg)
+
+### 3.1.7 Deploy Azure Container Registry
+In this chapter, we will learn how to deploy a private Azure container registry that will store our container images. A private container registry is a type of container registry that is not accessible from the public internet. To enable access to the private container registry from the jumpbox, we need to create some network resources that will allow us to resolve the container registry name and connect to it securely. These resources are: a private endpoint, a private link, and a virtual network link. We will see how to create and configure these resources in the following steps. We will also test the connection to the private container registry by pushing some images to it from the jumpbox.
+
+1) Create the Azure Container Registry, and disable public access to the registry.
+
+````bash
+az acr create \
+    --resource-group $RG \
+    --name $ACR_NAME \
+    --sku Premium \
+    --admin-enabled false \
+    --location westeurope \
+    --allow-trusted-services false \
+    --public-network-enabled false
+````
+> **_! Note:_**
+Ensure you have a global unique name for your ACR, else the deployment will fail.
+
+
+2) Disable endpoint network policies.
+
+````bash
+az network vnet subnet update \
+ --name $ENDPOINTS_SUBNET_NAME \
+ --vnet-name $SPOKE_VNET_NAME\
+ --resource-group $RG \
+ --disable-private-endpoint-network-policies
+````
+3) Configure the private DNS zone for ACR
+
+````bash
+az network private-dns zone create \
+  --resource-group $RG \
+  --name "privatelink.azurecr.io"
+````
+
+ 
+4) Create a virtual network link to the spoke network
+````bash
+az network private-dns link vnet create \
+  --resource-group $RG \
+  --zone-name "privatelink.azurecr.io" \
+  --name ACRDNSSpokeLink \
+  --virtual-network $SPOKE_VNET_NAME \
+  --registration-enabled false
+````
+5) Creates a virtual network link to the hub network
+````bash
+
+az network private-dns link vnet create \
+  --resource-group $RG \
+  --zone-name "privatelink.azurecr.io" \
+  --name ACRDNSHubLink \
+  --virtual-network $HUB_VNET_NAME \
+  --registration-enabled false
+````
+
+6) Create ACR private endpoint 
+
+````bash
+REGISTRY_ID=$(az acr show --name $ACR_NAME \
+  --query 'id' --output tsv)
+
+````
+
+````bash
+az network private-endpoint create \
+    --name ACRPrivateEndpoint \
+    --resource-group $RG \
+    --vnet-name $SPOKE_VNET_NAME \
+    --subnet $ENDPOINTS_SUBNET_NAME \
+    --private-connection-resource-id $REGISTRY_ID \
+    --group-ids registry \
+    --connection-name PrivateACRConnection
+````
+7) Configure DNS record for ACR
+before we can configure the DNS record we need to obtain the private IP address for of the ACR, both the control and dataplane.
+
+Get endpoint IP configuration:
+````bash
+NETWORK_INTERFACE_ID=$(az network private-endpoint show \
+  --name ACRPrivateEndpoint \
+  --resource-group $RG \
+  --query 'networkInterfaces[0].id' \
+  --output tsv)
+ ```` 
+
+Fetch the container registry private IP address
+````bash
+REGISTRY_PRIVATE_IP=$(az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry'].privateIPAddress" -o tsv)
+````
+Fetch the data endpoint IP address of the container registry
+````bash
+DATA_ENDPOINT_PRIVATE_IP=$(az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry_data_westeurope'].privateIPAddress" -o tsv)
+````
+
+Fetch the FQDN associated with the registry and data endpoint
+````bash
+REGISTRY_FQDN=$(az network nic show \
+  --ids $NETWORK_INTERFACE_ID \
+  --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry'].privateLinkConnectionProperties.fqdns" \
+  --output tsv)
+````
+````bash
+DATA_ENDPOINT_FQDN=$(az network nic show \
+  --ids $NETWORK_INTERFACE_ID \
+  --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry_data_westeurope'].privateLinkConnectionProperties.fqdns" \
+  --output tsv)
+````
+8) Create DNS records in the private DNS zone
+
+````bash
+az network private-dns record-set a create \
+  --name $ACR_NAME \
+  --zone-name privatelink.azurecr.io \
+  --resource-group $RG
+  ````
+
+9) Specify registry region in data endpoint name
+
+````bash
+az network private-dns record-set a create \
+  --name $ACR_NAME.westeurope.data \
+  --zone-name privatelink.azurecr.io \
+  --resource-group $RG
+````
+10) Create the A records for the registry endpoint and data endpoint
+
+````bash
+az network private-dns record-set a add-record \
+  --record-set-name $ACR_NAME \
+  --zone-name privatelink.azurecr.io \
+  --resource-group $RG \
+  --ipv4-address $REGISTRY_PRIVATE_IP
+
+````
+
+11) Specify registry region in data endpoint name
+
+````bash
+az network private-dns record-set a add-record \
+  --record-set-name $ACR_NAME.westeurope.data \
+  --zone-name privatelink.azurecr.io \
+  --resource-group $RG \
+  --ipv4-address $DATA_ENDPOINT_PRIVATE_IP
+````
+12) Test the connection to ACR from the Jumpbox
+
+In this section, you will learn how to check if you can access your private Azure Container Registry (ACR) and push Docker images to it. You will need to have the Azure CLI installed and logged in to your Azure account. You will also need to have Docker installed and running on your Jumpbox. Here are the steps to follow:
+
+1) Navigate to the Azure portal at **portal.azure.com** and enter your login credentials.
+2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
+3) Within your resource group, find and click on the **Jumpbox VM**.
+4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
+5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully.
+6) Once successfully logged in to the jumpbox **login to Azure** if you have not already done so in previous steps.
+
+````bash
+sudo az login
+````
+Identify your subscription id from the list, if you have several subscriptions.
+
+````bash
+az account list -o table
+````
+Set your subscription id to be the default subscription.
+````bash
+sudo az account set --subscription <SUBSCRIPTION ID>
+````
+7) Validate private link connection 
+
+List your ACR in your subscription and note down the ACR name.
+````bash
+sudo az acr list -o table
+````
+````bash
+dig <REGISTRY NAME>.azurecr.io
+````
+Example output shows the registry's private IP address in the address space of the subnet:
+````dns
+azureuser@Jumpbox-VM:~$ dig acraksbl.azurecr.io
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> acraksbl.azurecr.io
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 39202
+;; flags: qr rd ra; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 65494
+;; QUESTION SECTION:
+;acraksbl.azurecr.io.INA
+
+;; ANSWER SECTION:
+acraksbl.azurecr.io.60INCNAMEacraksbl.privatelink.azurecr.io.
+acraksbl.privatelink.azurecr.io. 1800 IN A10.1.2.5
+
+;; Query time: 8 msec
+;; SERVER: 127.0.0.53#53(127.0.0.53) (UDP)
+;; WHEN: Mon Oct 02 07:51:55 UTC 2023
+;; MSG SIZE  rcvd: 99
+````
+8. Create a Dockerfile, build the docker image, authenticate towards ACR and push the image to the container registry.
+
+````bash
+touch Dockerfile
+vim Dockerfile
+````
+Add the following content to the Dockerfile
+
+````bash
+FROM nginx
+EXPOSE 80
+CMD [“nginx”, “-g”, “daemon off;”
+````
+Build the Docker image
+
+````bash
+sudo docker build --tag nginx .
+````
+Example out:
+````bash
+azureuser@Jumpbox-VM:~$ sudo docker build --tag nginx .
+
+Sending build context to Docker daemon  222.7kB
+Step 1/3 : FROM nginx
+latest: Pulling from library/nginx
+a803e7c4b030: Pull complete 
+8b625c47d697: Pull complete 
+4d3239651a63: Pull complete 
+0f816efa513d: Pull complete 
+01d159b8db2f: Pull complete 
+5fb9a81470f3: Pull complete 
+9b1e1e7164db: Pull complete 
+Digest: sha256:32da30332506740a2f7c34d5dc70467b7f14ec67d912703568daff790ab3f755
+Status: Downloaded newer image for nginx:latest
+ ---> 61395b4c586d
+Step 2/3 : EXPOSE 80
+ ---> Running in d7267ee641b6
+Removing intermediate container d7267ee641b6
+ ---> 06a5ac2e4ba6
+Step 3/3 : CMD [“nginx”, “-g”, “daemon off;”]
+ ---> Running in c02c94dc283c
+Removing intermediate container c02c94dc283c
+ ---> 49a47448ba86
+Successfully built 49a47448ba86
+Successfully tagged nginx:latest
+````
+Create an alias of the image
+````bash
+sudo docker tag nginx <CONTAINER REGISTRY NAME>.azurecr.io/nginx
+````
+Authenticate to ACR.
+````bash
+sudo az acr login --name <CONTAINER REGISTRY NAME>
+````
+Upload the docker image to the ACR repository.
+````bash
+sudo docker push <CONTAINER REGISTRY NAME>.azurecr.io/nginx
+````
+Example output:
+
+````bash
+azureuser@Jumpbox-VM:~$ sudo docker push acraksbl.azurecr.io/nginx
+Using default tag: latest
+The push refers to repository [acraksbl.azurecr.io/nginx]
+d26d4f0eb474: Pushed 
+a7e2a768c198: Pushed 
+9c6261b5d198: Pushed 
+ea43d4f82a03: Pushed 
+1dc45c680d0f: Pushed 
+eb7e3384f0ab: Pushed 
+d310e774110a: Pushed 
+latest: digest: sha256:3dc6726adf74039f21eccf8f3b5de773080f8183545de5a235726132f70aba63 size: 1778
+````
+
+9) Attach AKS to the ACR, this command updates our existing AKS cluster and attaches it to the ACR, this allows the cluster to pull images from the ACR.
+
+````bash
+az aks update \
+    --resource-group $RG \
+    --name $AKS_CLUSTER_NAME \
+    --attach-acr $ACR_NAME
+````
+10) Validate AKS is able to pull images from ACR.
+
+On the Jumpbox VM create a yaml file.
+
+````bash
+touch test-pod.yaml
+vim test-pod.yaml
+````
+Paste in the following manifest file which creates a Pod named **internal-test-app** which fetches the docker images from our internal container registry, created in previous step. 
+````yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: internal-test-app
+  labels:
+    app: internal-test-app
+spec:
+  containers:
+  - name: nginx
+    image: acraksbl.azurecr.io/nginx
+    ports:
+    - containerPort: 80
+````
+Create the pod.
+````yaml
+kubectl create -f test-pod.yaml
+````
+````yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: internal-test-app
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "<LOADBALANCER SUBNET NAME>"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: internal-test-app
+````
+Verify that the Pod is in running state.
+
+````bash
+sudo kubectl get po --show-labels
+````
+Example output
+
+````bash
+azureuser@Jumpbox-VM:~$ sudo kubectl get po 
+NAME                READY   STATUS    RESTARTS   AGE
+internal-test-app   1/1     Running   0          8s
+````
+Our next step is to set up an internal load balancer that will direct the traffic to our internal Pod. The internal load balancer will be deployed in the load balancer subnet of the spoke-vnet.
+
+````yaml
+touch internal-app-service.yaml
+vim internal-app-service.yaml
+````
+````yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: internal-test-app-service
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "<LOADBALANCER SUBNET>"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: internal-test-app
+````
+Deploy the service object in AKS.
+
+````bash
+sudo kubectl create -f internal-app-service.yaml
+````
+Verify that your service object is created and associated with the Pod that you have created, also ensure that you have recieved an external IP, which should be a private IP address range from the load balancer subnet.
+
+````bash
+sudo kubectl get svc -o wide
+````
+Example output:
+
+````bash
+azureuser@Jumpbox-VM:~$ sudo kubectl get svc -o wide
+NAME                        TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE   SELECTOR
+internal-test-app-service   LoadBalancer   10.0.252.53   10.1.3.4      80:30161/TCP   39s   app=internal-test-app
+kubernetes                  ClusterIP      10.0.0.1      <none>        443/TCP        43h   <none>
+azureuser@Jumpbox-VM:~$ 
+````
+> **_! Note:_** Note down the EXTERNAL-IP (Private IP of the load balancer), as this will be used for creating the application gateway.  
+
+You have completed the steps to deploy a private Azure Container Registry, which is accessible from the jumpbox host.
+
+![Screenshot](/images/hubandspokewithpeeringBastionJumpboxFirewallaksvirtualnetlinkandacrandinternalloadbalancer.jpg)
+
+### 3.1.8 Deploy Azure Application Gateway.
+
+In this chapter, you will set up an application gateway that can terminate TLS connections at its own level. You will also learn how to perform these tasks: create an application gateway and upload a certificate to it, configure AKS as a backend pool for routing traffic to its internal load balancer, create a health probe to check the health of the AKS backend pool, and set up a WAF (web application firewall) to defend against common web attacks.
+
+1) Create public IP address with a domain name associated to the PIP resource
+
+> **_! Note:_** Your workshop instructor will provide you a student name for your domain name.  
+
+
+````bash
+az network public-ip create -g $RG -n AGPublicIPAddress --dns-name <STUDENT NAME> --allocation-method Static --sku Standard --location westeurope
+````
+2) Create WAF policy 
+
+
+````bash
+az network application-gateway waf-policy create --name ApplicationGatewayWAFPolicy --resource-group $RG
+````
+3) Create Application Gateway.
+
+> **_! Note:_** Your workshop instructor will provide you a **password** for the certificate. Before executing this command ensure the certificate is in **your working directory**.
+
+````bash
+az network application-gateway create \
+  --name AppGateway \
+  --location westeurope \
+  --resource-group $RG \
+  --vnet-name $SPOKE_VNET_NAME \
+  --subnet $APPGW_SUBNET_NAME \
+  --capacity 1 \
+  --sku WAF_v2 \
+  --http-settings-cookie-based-affinity Disabled \
+  --frontend-port 443 \
+  --http-settings-port 80 \
+  --http-settings-protocol Http \
+  --priority "1" \
+  --public-ip-address AGPublicIPAddress \
+  --cert-file appgwcert.pfx \
+  --cert-password "<CERTIFICATE PASSWORD>" \
+  --waf-policy ApplicationGatewayWAFPolicy \
+  --servers <LOAD BALANCER PRIVATE IP>
+```` 
+4) Create a custom probe for the application gateway that will monitor the health of the AKS backend pool.
+
+````bash
+ az network application-gateway probe create \
+    --gateway-name $APPGW_NAME \
+    --resource-group $RG \
+    --name health-probe \
+    --protocol Http \
+    --path / \
+    --interval 30 \
+    --timeout 120 \
+    --threshold 3 \
+    --host 127.0.0.1
+````
+5) Associate the health probe to the backend pool.
+````bash
+az network application-gateway http-settings update -g $RG --gateway-name $APPGW_NAME -n appGatewayBackendHttpSettings --probe health-probe
+````
+### 3.1.9 Validate Infrastructure 
+Open your web browser and access your domain: **STUDENT NAME.akssecurity.se**
+
+![Screenshot](/images/splashscreen.jpg)
