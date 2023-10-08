@@ -591,17 +591,17 @@ az network private-dns link vnet create --name "hubnetdnsconfig" --registration-
 
 In this section we will verify that we are able to connect to the AKS cluster from the jumpbox, firstly we need to connect to the cluster successfully and secondly we need to verify that the kubernetes client is able to communicate with the AKS control plane from the jumpbox. 
 
-10.1) Navigate to the Azure portal at **portal.azure.com** and enter your login credentials.
+1) Navigate to the Azure portal at [https://portal.azure.com](https://portal.azure.com)and enter your login credentials.
 
-10.2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
+2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
 
-10.3) Within your resource group, find and click on the **Jumpbox VM**.
+3) Within your resource group, find and click on the **Jumpbox VM**.
 
-10.4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
+4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
 
-10.5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully.
+5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully.
 
-10.6) Once successfully logged in to the jumbox **login to Azure** in order to obtain AKS credentials.
+6) Once successfully logged in to the jumbox **login to Azure** in order to obtain AKS credentials.
 
 ````bash
 sudo az login
@@ -788,7 +788,7 @@ az network private-dns record-set a add-record \
 
 In this section, you will learn how to check if you can access your private Azure Container Registry (ACR) and push Docker images to it. You will need to have the Azure CLI installed and logged in to your Azure account. You will also need to have Docker installed and running on your Jumpbox. Here are the steps to follow:
 
-1) Navigate to the Azure portal at **portal.azure.com** and enter your login credentials.
+1) Navigate to the Azure portal at [https://portal.azure.com](https://portal.azure.com) and enter your login credentials.
 2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
 3) Within your resource group, find and click on the **Jumpbox VM**.
 4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
