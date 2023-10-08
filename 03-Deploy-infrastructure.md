@@ -162,7 +162,7 @@ az network vnet subnet create \
     --address-prefixes $JUMPBOX_SUBNET_PREFIX \
     --network-security-group $JUMPBOX_NSG_NAME
 ````
-You have successfully configured the network for your hub virtual network. This will enable you to create a resilient and customizable AKS cluster. You have established three subnets and two NSGs, as depicted on the image:
+You have successfully configured the network for your hub virtual network.You have established three subnets and two NSGs, as depicted on the image:
 
 ![Screenshot](images/HubVnetandNsgOnly.jpg)
 
@@ -482,3 +482,157 @@ You have successfully configured the firewall in hub vnet.
 
 ![Screenshot](/images/hubandspokewithpeeringBastionJumpboxFirewall.jpg)
 ![Screenshot](/images/OutboundTraffic.jpg)
+
+### 3.1.6 Deploy Azure Kubernetes Service
+
+In this chapter, we will learn how to deploy AKS and configure its outbound traffic to use the user-defined routing table that we created in the previous chapter. By doing this, we will ensure that all outbound traffic from the AKS subnet will pass through the Azure Firewall for inspection and filtering. Since we are deploying AKS into an existing virtual network, we need to assign an identity to the cluster that has the necessary permissions to modify the routing table. This identity is called a user assigned identity and it is a type of managed identity in Azure. we will also need to assign the user managed identity to the load balancer subnet, as AKS will need permissions to update load balancer with rules. We will see how to create and assign this identity in the following steps.
+
+1) Create a user-assigned managed identity
+````bash
+az identity create \
+    --resource-group $RG \
+    --name $AKS_IDENTITY_NAME
+````
+2) Get the id of the user managed identity
+````bash
+ identity_id=$(az identity show \
+    --resource-group $RG \
+    --name $AKS_IDENTITY_NAME \
+    --query id \
+    --output tsv)
+````
+3) Get the principal id of the user managed identity
+
+````bash
+principal_id=$(az identity show \
+    --resource-group $RG \
+    --name $AKS_IDENTITY_NAME \
+    --query principalId \
+    --output tsv)
+````
+
+4) Get the scope of the routing table
+
+````bash
+rt_scope=$(az network route-table show \
+    --resource-group $RG \
+    --name $ROUTE_TABLE_NAME  \
+    --query id \
+    --output tsv)
+````
+5) Assign permissions for the AKS user defined managed identity to the routing table
+
+````bash
+az role assignment create \
+    --assignee $principal_id \
+    --scope $rt_scope \
+    --role "Network Contributor"
+````
+
+6) Assign permission for the AKS user defined managed identity to the load balancer subnet
+
+````bash
+lb_subnet_scope=$(az network vnet subnet list \
+    --resource-group $RG \
+    --vnet-name $SPOKE_VNET_NAME \
+    --query "[?name=='$LOADBALANCER_SUBNET_NAME'].id" \
+    --output tsv)
+````
+
+````bash
+az role assignment create \
+    --assignee $principal_id \
+    --scope $lb_subnet_scope \
+    --role "Network Contributor"
+
+````
+> **_! Note:_**
+In the context of Azure Kubernetes Service (AKS), granting the Network Contributor role to the load balancer subnet could potentially result in over-privileged access. To adhere to the principle of least privilege access, it is recommended to only provide AKS with the necessary permissions it needs to function effectively. This approach minimizes potential security risks by limiting the access rights of AKS to the bare minimum required for it to perform its tasks. For more information refer to [Creating Azure custom role](./docs/customrole.md)
+
+7) Retrieve the scope of AKS subnet, were AKS shall be deployed.
+
+````bash
+aks_subnet_scope=$(az network vnet subnet list \
+    --resource-group $RG \
+    --vnet-name $SPOKE_VNET_NAME \
+    --query "[?name=='$AKS_SUBNET_NAME'].id" \
+    --output tsv)
+````
+8) Deploy a Private AKS cluster.
+
+````bash
+az aks create --resource-group $RG --node-count 3 --vnet-subnet-id $aks_subnet_scope --name $AKS_CLUSTER_NAME --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
+````
+
+> **_! Note:_** A private AKS cluster is a type of AKS cluster that has its Kubernetes API endpoint isolated from public access. This means that you can only access the API endpoint if you are within the same virtual network as the cluster. However, in our scenario, we have our jumpbox in a different virtual network than the cluster. Therefore, we need to create a virtual network link between the two networks to enable DNS resolution across them. This will allow us to use the jumpbox to communicate with the private AKS cluster. We will see how to create and configure this link in the next section.
+
+9) Create a virtual network link to resolve AKS private endpoint from HUB vnet.
+
+Fetch the node group of the AKS cluster, and save it in an environment variable.
+````bash
+NODE_GROUP=$(az aks show --resource-group $RG --name $AKS_CLUSTER_NAME --query nodeResourceGroup -o tsv)
+````
+Fetch the AKS DNS zone name.
+````bash
+DNS_ZONE_NAME=$(az network private-dns zone list --resource-group $NODE_GROUP --query "[0].name" -o tsv)
+
+````
+Fetch the ID of the HUB virtual network.
+````bash
+HUB_VNET_ID=$(az network vnet show -g $RG -n $HUB_VNET_NAME --query id --output tsv)
+````
+Create a virtual network link between the hub virtual network and the AKS private DNS zone.
+that was created for the AKS cluster.
+````bash
+az network private-dns link vnet create --name "hubnetdnsconfig" --registration-enabled false --resource-group $NODE_GROUP --virtual-network $HUB_VNET_ID --zone-name $DNS_ZONE_NAME 
+````
+
+10) Verify AKS control plane connectivity
+
+In this section we will verify that we are able to connect to the AKS cluster from the jumpbox, firstly we need to connect to the cluster successfully and secondly we need to verify that the kubernetes client is able to communicate with the AKS control plane from the jumpbox. 
+
+10.1) Navigate to the Azure portal at **portal.azure.com** and enter your login credentials.
+
+10.2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
+
+10.3) Within your resource group, find and click on the **Jumpbox VM**.
+
+10.4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
+
+10.5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully.
+
+10.6) Once successfully logged in to the jumbox **login to Azure** in order to obtain AKS credentials.
+
+````bash
+sudo az login
+sudo az account set --subscription <SUBSCRIPTION ID>
+````
+> **_! Note:_**
+To check the current subscription, run the command: **az account show**
+To change the subscription, run the command: **az account set --subscription <SUBSCRIPTION ID>, where <SUBSCRIPTION ID>** the ID of the desired subscription. You can find the subscription ID by running the command: **az account list --output table**
+
+10.7) Download the AKS credentials onto the jumpbox.
+
+````bash
+sudo az aks get-credentials --resource-group $RG --name $AKS_CLUSTER_NAME
+````
+10.8) Ensure you can list resources in AKS.
+
+````bash
+sudo kubectl get nodes
+````
+
+The following output shows the result of running the command kubectl get nodes on with kubectl CLI.
+
+````bash
+azureuser@Jumpbox-VM:~$ sudo kubectl get nodes
+NAME                                STATUS   ROLES   AGE   VERSION
+aks-nodepool1-33590162-vmss000000   Ready    agent   11h   v1.26.6
+aks-nodepool1-33590162-vmss000001   Ready    agent   11h   v1.26.6
+aks-nodepool1-33590162-vmss000002   Ready    agent   11h   v1.26.6
+````
+
+Congratulations! You have completed the steps to deploy a private AKS cluster and configure its network settings. You have assigned a user assigned identity to the cluster that has the required permissions to modify the user-defined routing table and load balancer subnet. You have also created a virtual network link between the hub virtual network and the private DNS zone of the cluster. This enables the jumpbox to resolve the private API server of the cluster and access it for management and maintenance purposes.
+
+![Screenshot](/images/hubandspokewithpeeringBastionJumpboxFirewallaksvirtualnetlink.jpg)
+![Screenshot](/images/aksjumpbox.jpg)
