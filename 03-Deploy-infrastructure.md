@@ -356,15 +356,15 @@ az network bastion create \
 
 Upon successful installation of the Jumpbox Virtual Machine (VM), the next step is to validate the connectivity between the Bastion and Jumpbox host. Here are the steps to follow:
 
-5.1) Navigate to the Azure portal at [https://portal.azure.com](https://portal.azure.com) and enter your login credentials.
+1) Navigate to the Azure portal at [https://portal.azure.com](https://portal.azure.com) and enter your login credentials.
 
-5.2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
+2) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
 
-5.3) Within your resource group, find and click on the **Jumpbox VM**.
+3) Within your resource group, find and click on the **Jumpbox VM**.
 
-5.4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
+4) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
 
-5.5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully. 
+5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully. 
 
 For additional information on accessing VMs through Bastion, please refer to this [Microsoft Azure Bastion tutorial](https://learn.microsoft.com/en-us/azure/bastion/create-host-cli#steps)
 
@@ -941,7 +941,7 @@ metadata:
 spec:
   containers:
   - name: nginx
-    image: acraksbl.azurecr.io/nginx
+    image: <ACR NAME>.azurecr.io/nginx
     ports:
     - containerPort: 80
 ````
