@@ -1083,10 +1083,13 @@ az network application-gateway create \
 az network application-gateway http-settings update -g $RG --gateway-name $APPGW_NAME -n appGatewayBackendHttpSettings --probe health-probe
 ````
 
+We have successfully completed the deployment and configuration of our network and cluster resources. The following diagram shows the high-level architecture of our solution. As you can see, we have a test pod running in AKS that can receive traffic from the internet through the Azure Application Gateway and the Azure Internal Load Balancer. We can also access the private API server of the AKS cluster and the private container registry from the jumpbox using the private endpoints and links. We have also enabled outbound traffic from the AKS subnet to go through the Azure Firewall for inspection and filtering. In the next chapter, we will validate if we can access our test Pod.
+
 ![Screenshot](/images/hubandspokewithpeeringBastionJumpboxFirewallaksvirtualnetlinkandacrandinternalloadbalancerandapplicationgw.jpg)
 
 
-### 3.1.9 Validate Infrastructure 
+### 3.1.9 Validate ingress connection.
 Open your web browser and access your domain: **STUDENT NAME.akssecurity.se**
+you should see a similar output as to the one below.
 
 ![Screenshot](/images/splashscreen.jpg)
