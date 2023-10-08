@@ -947,21 +947,7 @@ Create the pod.
 ````yaml
 kubectl create -f test-pod.yaml
 ````
-````yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: internal-test-app
-  annotations:
-    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
-    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "<LOADBALANCER SUBNET NAME>"
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 80
-  selector:
-    app: internal-test-app
-````
+
 Verify that the Pod is in running state.
 
 ````bash
@@ -975,6 +961,7 @@ NAME                READY   STATUS    RESTARTS   AGE
 internal-test-app   1/1     Running   0          8s
 ````
 Our next step is to set up an internal load balancer that will direct the traffic to our internal Pod. The internal load balancer will be deployed in the load balancer subnet of the spoke-vnet.
+
 
 ````yaml
 touch internal-app-service.yaml
@@ -1091,3 +1078,11 @@ Open your web browser and access your domain: **STUDENT NAME.akssecurity.se**
 you should see a similar output as to the one below.
 
 ![Screenshot](/images/splashscreen.jpg)
+
+### 3.1.10 Clean up resources in AKS
+Once you have verified that everything works as depicted earlier. from the jumpbox host delete the resources.
+
+````bash
+kubectl delete -f test-pod.yaml
+kubectl delete -f internal-app-service.yaml
+````
