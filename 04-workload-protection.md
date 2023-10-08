@@ -1,54 +1,169 @@
-## Deploy app with Workload Identity
+# 4.0 Deploy app with Workload Identity
 
-During this activity you will:
+## 4.1 Introduction
+Workload identity is important as it allows you to securely access Azure resources from your Kubernetes applications using Azure AD identities. This way, you can avoid storing and managing credentials in your cluster, and instead rely on the native Kubernetes mechanisms to federate with external identity providers. Workload identity also simplifies the authentication process for your applications, as they can use the Azure Identity client libraries or MSAL to seamlessly obtain tokens from Azure AD and access Azure resources. Workload identity is the recommended way to authenticate with Azure AD from AKS pods, as it replaces the deprecated pod identity feature that had some limitations and complexities. more information about workload identity can be found here: [Use Azure AD workload identity with Azure Kubernetes Service (AKS)](https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview?tabs=dotnet)
 
-* Build an application and store in Azure Container Registry 
-* Activate OIDC issuer on AKS cluster (or create a new cluster with OIDC activated)
-* Create a secret and store in the Azure Keyvault.
-* Create an Azure Active Directory (Azure AD) managed identity
-* Connect the MI to a Kubernetes service account with token federation
-* Deploy a workload and verify authentication to keyvault with the workload identity
 
+In this tutorial, you will learn how to:
+
+- Build an application and store it in Azure Container Registry
+- Activate OpenID Connect (OIDC) issuer on Azure Kubernetes Service (AKS) cluster (or create a new cluster with OIDC activated)
+- Create a secret and store it in Azure Key Vault
+- Create an Azure Active Directory (Azure AD) managed identity
+- Connect the managed identity to a Kubernetes service account with token federation
+- Deploy a workload and verify authentication to Key Vault with the workload identity
+
+To begin, you need to create some environment variables that will be used throughout the tutorial.
+
+## 4.2 Deployment
+In this tutorial, you will learn how to configure environment variables for various Azure resources that are required for your application. The environment variables will store the names and locations of the following resources:
+
+* Azure Kubernetes Service (AKS) namespace: This is the logical grouping of your Kubernetes objects within the AKS cluster.
+* Azure Key Vault name: This is the name of the secure storage service that holds your secrets, keys, and certificates.
+* Azure Identity name: This is the name of the managed identity that grants your application access to the Azure resources.
+
+By setting these environment variables, you will be able to use them in your code and scripts without hard-coding the values. This will make your application more secure and maintainable.
+
+### 4.2.1 Prepare Environment Variables for infrastructure
 
 First, lets create a few environment variables, for ease of use
 
+> **_! Note:_** The Azure keyvault name is a global name that must be unique, it is a 3-24 characther string that can contain only 0-9,a-z,A-Z and not consecutive. They keyvault name is part of the DNS name of the the key vault service endpoint. **Thus it is important that you create a unique name else the deployment will fail**. You need to assign a distinct value to the **KEYVAULT_NAME** environment variable.
 ````
-export RESOURCE_GROUP="app-rg"
-export LOCATION="westeurope"
-export FRONTEND_NAMESPACE="frontend"
-export BACKEND_NAMESPACE="backend"
-export SERVICE_ACCOUNT_NAME="workload-identity-sa"
-export SUBSCRIPTION="$(az account show --query id --output tsv)"
-export USER_ASSIGNED_IDENTITY_NAME="keyvaultreader"
-export FEDERATED_IDENTITY_CREDENTIAL_NAME="keyvaultfederated"
-export KEYVAULT_NAME="pelithnekv2"
-export KEYVAULT_SECRET_NAME="redissecret"
-export ACRNAME=<globally unique name>
+FRONTEND_NAMESPACE="frontend"
+BACKEND_NAMESPACE="backend"
+SERVICE_ACCOUNT_NAME="workload-identity-sa"
+SUBSCRIPTION="$(az account show --query id --output tsv)"
+USER_ASSIGNED_IDENTITY_NAME="keyvaultreader"
+FEDERATED_IDENTITY_CREDENTIAL_NAME="keyvaultfederated"
+KEYVAULT_NAME="<DEFINE A KEYVAULT NAME HERE>"
+KEYVAULT_SECRET_NAME="redissecret"
 ````
 
+### 4.2.2 Update AKS cluster with OIDC issuer
 
+1) Enable the existing cluster to use OpenID connect (OIDC) as an authentication protocol for Kubernetes API server. This allows the cluster to integrate with Azure Active Directory (Microsoft Entra ID) and other identity providers that support OIDC.
 
-
-### Update AKS cluster with OIDC issuer
-
-
-````
-az aks update -g "${RESOURCE_GROUP}" -n myAKSCluster  --enable-oidc-issuer 
+````bash
+az aks update -g $RG -n $AKS_CLUSTER_NAME  --enable-oidc-issuer 
 
 ````
 
-### Get the OICD issuer URL
+2) Get the OICD issuer URL. Query the AKS cluster for the OICD issuer URL with the following command, which stores the reult in an environment variable.
 
-Query the AKS cluster for the OICD issuer URL with the following command, which stores the reult in an environment variable.
-
-````
-export AKS_OIDC_ISSUER="$(az aks show -n myAKSCluster -g "${RESOURCE_GROUP}" --query "oidcIssuerProfile.issuerUrl" -otsv)"
+````bash
+AKS_OIDC_ISSUER="$(az aks show -n $AKS_CLUSTER_NAME -g $RG  --query "oidcIssuerProfile.issuerUrl" -otsv)"
 ````
 
 The variable should contain the Issuer URL similar to the following:
  ````https://eastus.oic.prod-aks.azure.com/9e08065f-6106-4526-9b01-d6c64753fe02/9a518161-4400-4e57-9913-d8d82344b504/````
 
- 
+### 4.2.3 Create Azure Keyvault
+
+1) Create the Azure Keyvault instance:
+
+
+````bash
+az keyvault create -n $KEYVAULT_NAME -g $RG -l $LOCATION
+````
+2) In this step we need to further secure our Key vault, we need to deny as a default action for the network access policy, which means that only the specified IP addresses or virtual networks can access the key vault, we want to restrict it to certain virtual networks only.
+
+````bash
+az keyvault update -n $KEYVAULT_NAME -g $RG --default-action deny
+````
+
+3) Create a private DNS zone for the Azure Keyvault.
+
+````bash
+az network private-dns zone create --resource-group $RG --name privatelink.vaultcore.azure.net
+````
+
+4) Link the Private DNS Zone to the HUB and SPOKE Virtual Network
+
+````bash
+az network private-dns link vnet create --resource-group $RG --virtual-network $HUB_VNET_NAME --zone-name privatelink.vaultcore.azure.net --name hubvnetkvdnsconfig --registration-enabled false
+````
+````bash
+az network private-dns link vnet create --resource-group $RG --virtual-network $SPOKE_VNET_NAME --zone-name privatelink.vaultcore.azure.net --name spokevnetkvdnsconfig --registration-enabled false
+````
+
+5) Create a private endpoint for the Keyvault
+
+First we need to obtain the Keyvault ID in order to deploy the private endpoint.
+
+````bash
+KEYVAULT_ID=$(az keyvault show --name $KEYVAULT_NAME \
+  --query 'id' --output tsv)
+````
+Create the private endpoint in endpoint subnet.
+
+````bash
+az network private-endpoint create --resource-group $RG --vnet-name $SPOKE_VNET_NAME --subnet $ENDPOINTS_SUBNET_NAME --name KVPrivateEndpoint --private-connection-resource-id $KEYVAULT_ID --group-ids vault --connection-name PrivateKVConnection --location $LOCATION
+````
+
+6) Fetch IP of the private endpoint and create an "A" DNS record in the private DNS zone.
+
+Obtain the IP address of the private endpoint NIC card.
+ ````bash
+KV_PRIVATE_IP=$(az network private-endpoint show -g $RG -n KVPrivateEndpoint \
+  --query 'customDnsConfigs[0].ipAddresses[0]' --output tsv)
+ ````
+
+Create the A record in DNS zone. and point it to the private endpoint IP of the Keyvault.
+
+````bash
+  az network private-dns record-set a create \
+  --name $KEYVAULT_NAME \
+  --zone-name privatelink.vaultcore.azure.net \
+  --resource-group $RG
+````
+Point the "A" record to the private endpoint IP of the Keyvault.
+````bash
+ az network private-dns record-set a add-record -g $RG -z "privatelink.vaultcore.azure.net" -n $KEYVAULT_NAME -a $KV_PRIVATE_IP
+ ````
+
+7) Validate the private link connection from Jumpbox
+
+8) Navigate to the Azure portal at [https://portal.azure.com](https://portal.azure.com) and enter your login credentials.
+9) Once logged in, locate and select your **resource group** where the Jumpbox has been deployed.
+10) Within your resource group, find and click on the **Jumpbox VM**.
+11) In the left-hand side menu, under the **Operations** section, select ‘Bastion’.
+12) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully.
+13) Once successfully logged in to the jumpbox **login to Azure** if you have not already done so in previous steps.
+14) in the command line type the following command and ensure it returns the **private ip address of the private endpoint**.
+
+````bash
+dig <KEYVAULT NAME>.vault.azure.net
+````
+Example output:
+````bash
+azureuser@Jumpbox-VM:~$ dig alibengtssonkeyvault.vault.azure.net
+
+; <<>> DiG 9.18.12-0ubuntu0.22.04.3-Ubuntu <<>> alibengtssonkeyvault.vault.azure.net
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 22014
+;; flags: qr rd ra; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 65494
+;; QUESTION SECTION:
+;alibengtssonkeyvault.vault.azure.net. IN A
+
+;; ANSWER SECTION:
+alibengtssonkeyvault.vault.azure.net. 60 IN CNAME alibengtssonkeyvault.privatelink.vaultcore.azure.net.
+alibengtssonkeyvault.privatelink.vaultcore.azure.net. 1800 IN A10.1.2.6
+
+;; Query time: 12 msec
+;; SERVER: 127.0.0.53#53(127.0.0.53) (UDP)
+;; WHEN: Sun Oct 08 16:41:05 UTC 2023
+;; MSG SIZE  rcvd: 138
+
+````
+
+You have successfully achieved the secure AKS baseline by deploying Azure Key Vault and integrating it with Azure Private Link. This completes the targeted architecture that ensures the security and privacy **baseline** of your AKS cluster and its secrets.
+
+![Screenshot](/images/hubandspokewithpeeringBastionJumpboxFirewallaksvirtualnetlinkandacrandinternalloadbalancerandapplicationgwandkeyvault.jpg)
 
  ### Add a secret to Azure Keyvault
 

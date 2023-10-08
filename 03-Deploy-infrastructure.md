@@ -8,7 +8,7 @@ The objective of this chapter is to guide you through the process of deploying t
 
 This configuration sets up environment variables for the names and locations of various network and security resources, such as resource group, virtual network, subnets, network security groups, firewall, application gateway, route table, identity, virtual machine, AKS cluster, and ACR registry.
 
-
+> **_! Note:_** Since the Azure container registry has a globally unique FQDN name, you need to assign a distinct value to the **ACR_NAME** environment variable, else the ACR deployment will fail.
 
 ````bash
 RG=AKS_Security_RG
@@ -27,11 +27,9 @@ JUMPBOX_VM_NAME=Jumpbox-VM
 AKS_CLUSTER_NAME=private-aks
 ACR_NAME=<NAME OF THE AZURE CONTAINER REGISTRY>
 ````
-> **_! Note:_** Since the Azure container registry has a globally unique FQDN name, you need to assign a distinct value to the ACR_NAME environment variable.
+
 
 ### 3.1.2 Create the Resource group for the resources
-
-
 
 ````bash
 az group create --name $RG --location westeurope
