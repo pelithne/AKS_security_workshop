@@ -1082,6 +1082,10 @@ az network application-gateway create \
 ````bash
 az network application-gateway http-settings update -g $RG --gateway-name $APPGW_NAME -n appGatewayBackendHttpSettings --probe health-probe
 ````
+
+![Screenshot](/images/hubandspokewithpeeringBastionJumpboxFirewallaksvirtualnetlinkandacrandinternalloadbalancerandapplicationgw.jpg)
+
+
 ### 3.1.9 Validate Infrastructure 
 Open your web browser and access your domain: **STUDENT NAME.akssecurity.se**
 
