@@ -28,7 +28,6 @@ AKS_CLUSTER_NAME=private-aks
 ACR_NAME=<NAME OF THE AZURE CONTAINER REGISTRY>
 ````
 
-
 ### 3.1.2 Create the Resource group for the resources
 
 ````bash
@@ -559,12 +558,17 @@ aks_subnet_scope=$(az network vnet subnet list \
 8) Deploy a Private AKS cluster.
 
 ````bash
-az aks create --resource-group $RG --node-count 3 --vnet-subnet-id $aks_subnet_scope --name $AKS_CLUSTER_NAME --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id
+az aks create --resource-group $RG --node-count 2 --vnet-subnet-id $aks_subnet_scope --name $AKS_CLUSTER_NAME --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id --network-plugin azure --network-policy calico
 ````
 
 > **_! Note:_** A private AKS cluster is a type of AKS cluster that has its Kubernetes API endpoint isolated from public access. This means that you can only access the API endpoint if you are within the same virtual network as the cluster. However, in our scenario, we have our jumpbox in a different virtual network than the cluster. Therefore, we need to create a virtual network link between the two networks to enable DNS resolution across them. This will allow us to use the jumpbox to communicate with the private AKS cluster. We will see how to create and configure this link in the next section.
 
-9) Create a virtual network link to resolve AKS private endpoint from HUB vnet.
+9) Create an additional nodepool for hosting user workloads.
+````bash
+az aks nodepool add --resource-group $RG --cluster-name $AKS_CLUSTER_NAME --name nodepool2 --node-count 3 --mode user
+````
+
+10) Create a virtual network link to resolve AKS private endpoint from HUB vnet.
 
 Fetch the node group of the AKS cluster, and save it in an environment variable.
 ````bash
@@ -585,7 +589,7 @@ that was created for the AKS cluster.
 az network private-dns link vnet create --name "hubnetdnsconfig" --registration-enabled false --resource-group $NODE_GROUP --virtual-network $HUB_VNET_ID --zone-name $DNS_ZONE_NAME 
 ````
 
-10) Verify AKS control plane connectivity
+11) Verify AKS control plane connectivity
 
 In this section we will verify that we are able to connect to the AKS cluster from the jumpbox, firstly we need to connect to the cluster successfully and secondly we need to verify that the kubernetes client is able to communicate with the AKS control plane from the jumpbox. 
 
@@ -609,12 +613,12 @@ sudo az account set --subscription <SUBSCRIPTION ID>
 To check the current subscription, run the command: **az account show**
 To change the subscription, run the command: **az account set --subscription <SUBSCRIPTION ID>, where <SUBSCRIPTION ID>** the ID of the desired subscription. You can find the subscription ID by running the command: **az account list --output table**
 
-10.7) Download the AKS credentials onto the jumpbox.
+7) Download the AKS credentials onto the jumpbox.
 
 ````bash
 sudo az aks get-credentials --resource-group $RG --name $AKS_CLUSTER_NAME
 ````
-10.8) Ensure you can list resources in AKS.
+8) Ensure you can list resources in AKS.
 
 ````bash
 sudo kubectl get nodes
@@ -629,7 +633,7 @@ aks-nodepool1-33590162-vmss000000   Ready    agent   11h   v1.26.6
 aks-nodepool1-33590162-vmss000001   Ready    agent   11h   v1.26.6
 aks-nodepool1-33590162-vmss000002   Ready    agent   11h   v1.26.6
 ````
-10.9) log out from the Jumpbox host.
+9) log out from the Jumpbox host.
 
 Congratulations! You have completed the steps to deploy a private AKS cluster and configure its network settings. You have assigned a user assigned identity to the cluster that has the required permissions to modify the user-defined routing table and load balancer subnet. You have also created a virtual network link between the hub virtual network and the private DNS zone of the cluster. This enables the jumpbox to resolve the private API server of the cluster and access it for management and maintenance purposes.
 
