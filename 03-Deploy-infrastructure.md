@@ -559,7 +559,7 @@ aks_subnet_scope=$(az network vnet subnet list \
 8) Deploy a Private AKS cluster.
 
 ````bash
-az aks create --resource-group $RG --node-count 2 --vnet-subnet-id $aks_subnet_scope --name $AKS_CLUSTER_NAME --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id --network-plugin azure --network-policy calico --disable-public-fqdn
+az aks create --resource-group $RG --node-count 2 --vnet-subnet-id $aks_subnet_scope --name $AKS_CLUSTER_NAME --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id --network-plugin azure --network-policy azure --disable-public-fqdn
 ````
 
 > **_! Note:_** A private AKS cluster is a type of AKS cluster that has its Kubernetes API endpoint isolated from public access. This means that you can only access the API endpoint if you are within the same virtual network as the cluster. However, in our scenario, we have our jumpbox in a different virtual network than the cluster. Therefore, we need to create a virtual network link between the two networks to enable DNS resolution across them. This will allow us to use the jumpbox to communicate with the private AKS cluster. We will see how to create and configure this link in the next section.
