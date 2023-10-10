@@ -8,7 +8,7 @@ The objective of this chapter is to guide you through the process of deploying t
 
 This configuration sets up environment variables for the names and locations of various network and security resources, such as resource group, virtual network, subnets, network security groups, firewall, application gateway, route table, identity, virtual machine, AKS cluster, and ACR registry.
 
-> **_! Note:_** Since the Azure container registry has a globally unique FQDN name, you need to assign a distinct value to the **ACR_NAME** environment variable, else the ACR deployment will fail.
+> **_! Note:_** Since the Azure container registry has a globally unique FQDN name, you need to assign a distinct value to the **ACR_NAME** environment variable, else the ACR deployment will fail. 
 
 ````bash
 RG=AKS_Security_RG
@@ -26,6 +26,7 @@ AKS_IDENTITY_NAME=aks-msi
 JUMPBOX_VM_NAME=Jumpbox-VM
 AKS_CLUSTER_NAME=private-aks
 ACR_NAME=<NAME OF THE AZURE CONTAINER REGISTRY>
+STUDENT_NAME=<WRITE YOUR STUDENT NAME HERE>
 ````
 
 ### 3.1.2 Create the Resource group for the resources
@@ -558,7 +559,7 @@ aks_subnet_scope=$(az network vnet subnet list \
 8) Deploy a Private AKS cluster.
 
 ````bash
-az aks create --resource-group $RG --node-count 2 --vnet-subnet-id $aks_subnet_scope --name $AKS_CLUSTER_NAME --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id --network-plugin azure --network-policy calico
+az aks create --resource-group $RG --node-count 2 --vnet-subnet-id $aks_subnet_scope --name $AKS_CLUSTER_NAME --enable-private-cluster --outbound-type userDefinedRouting --enable-oidc-issuer --enable-workload-identity --generate-ssh-keys --assign-identity $identity_id --network-plugin azure --network-policy calico --disable-public-fqdn
 ````
 
 > **_! Note:_** A private AKS cluster is a type of AKS cluster that has its Kubernetes API endpoint isolated from public access. This means that you can only access the API endpoint if you are within the same virtual network as the cluster. However, in our scenario, we have our jumpbox in a different virtual network than the cluster. Therefore, we need to create a virtual network link between the two networks to enable DNS resolution across them. This will allow us to use the jumpbox to communicate with the private AKS cluster. We will see how to create and configure this link in the next section.
@@ -1021,7 +1022,7 @@ In this chapter, you will set up an application gateway that can terminate TLS c
 
 
 ````bash
-az network public-ip create -g $RG -n AGPublicIPAddress --dns-name <STUDENT NAME> --allocation-method Static --sku Standard --location westeurope
+az network public-ip create -g $RG -n AGPublicIPAddress --dns-name $STUDENT_NAME --allocation-method Static --sku Standard --location westeurope
 ````
 2) Create WAF policy 
 
