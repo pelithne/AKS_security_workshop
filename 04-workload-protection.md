@@ -40,7 +40,7 @@ KEYVAULT_SECRET_NAME="redissecret"
 
 ### 4.2.2 Update AKS cluster with OIDC issuer
 
-Enable the existing cluster to use OpenID connect (OIDC) as an authentication protocol for Kubernetes API server. This allows the cluster to integrate with Azure Active Directory (Microsoft Entra ID) and other identity providers that support OIDC.
+Enable the existing cluster to use OpenID connect (OIDC) as an authentication protocol for Kubernetes API server (unless already done). This allows the cluster to integrate with Azure Active Directory (Microsoft Entra ID) and other identity providers that support OIDC.
 
 ````bash
 az aks update -g $RG -n $AKS_CLUSTER_NAME  --enable-oidc-issuer 
@@ -58,16 +58,11 @@ The variable should contain the Issuer URL similar to the following:
 
 ### 4.2.3 Create Azure Keyvault
 
-Create the Azure Keyvault instance:
+Create the Azure Keyvault instance. When creating the Keyvault, use "deny as a default" action for the network access policy, which means that only the specified IP addresses or virtual networks can access the key vault.
 
 
 ````bash
-az keyvault create -n $KEYVAULT_NAME -g $RG -l $LOCATION
-````
-When creating the Keyvault, use "deny as a default" action for the network access policy, which means that only the specified IP addresses or virtual networks can access the key vault.
-
-````bash
-az keyvault update -n $KEYVAULT_NAME -g $RG --default-action deny
+az keyvault create -n $KEYVAULT_NAME -g $RG -l $LOCATION --default-action deny
 ````
 
 Create a private DNS zone for the Azure Keyvault.
@@ -169,15 +164,31 @@ Now, you should have an infrastucture that looks like this:
 
  ### Add a secret to Azure Keyvault
 
+ Becauyse the keyvault is isolated in a VNET, you need to access it from the jumphost. Please log in to the jump host, and set a few environment variables (or load all environment variables you stored in a file):
+
+ ````
+RG=AKS_Security_RG
+LOCATION=westeurope 
+FRONTEND_NAMESPACE="frontend"
+BACKEND_NAMESPACE="backend"
+SERVICE_ACCOUNT_NAME="workload-identity-sa"
+SUBSCRIPTION="$(az account show --query id --output tsv)"
+USER_ASSIGNED_IDENTITY_NAME="keyvaultreader"
+FEDERATED_IDENTITY_CREDENTIAL_NAME="keyvaultfederated"
+KEYVAULT_NAME=<Your key vault name>
+KEYVAULT_SECRET_NAME="redissecret"
+AKS_CLUSTER_NAME=private-aks
+ ````
+
 Create a secret in the keyvault. This is the secret that will be used by the frontend application to connect to the (redis) backend.
 
  ````
- az keyvault secret set --vault-name "${KEYVAULT_NAME}" --name "${KEYVAULT_SECRET_NAME}" --value 'redispassword'
+ az keyvault secret set --vault-name $KEYVAULT_NAME --name $KEYVAULT_SECRET_NAME --value 'redispassword'
  ````
 
 ### Add the Key Vault URL to the environment variable *KEYVAULT_URL*
  ````
- export KEYVAULT_URL="$(az keyvault show -g "${RESOURCE_GROUP}" -n ${KEYVAULT_NAME} --query properties.vaultUri -o tsv)"
+ export KEYVAULT_URL="$(az keyvault show -g $RG  -n $KEYVAULT_NAME --query properties.vaultUri -o tsv)"
  ````
 
  ### Create a managed identity and grant permissions to access the secret
@@ -185,17 +196,17 @@ Create a secret in the keyvault. This is the secret that will be used by the fro
 Create a User Managed Identity. We will give this identity *GET access* to the keyvault, and later associate it with a Kubernetes service account. 
 
  ````
- az account set --subscription "${SUBSCRIPTION}"
- az identity create --name "${USER_ASSIGNED_IDENTITY_NAME}" --resource-group "${RESOURCE_GROUP}" --location "${LOCATION}" --subscription "${SUBSCRIPTION}"
+ az account set --subscription $SUBSCRIPTION 
+ az identity create --name $USER_ASSIGNED_IDENTITY_NAME  --resource-group $RG  --location $LOCATION  --subscription $SUBSCRIPTION 
 
  ````
 
  Set an access policy for the managed identity to access the Key Vault
 
  ````
- export USER_ASSIGNED_CLIENT_ID="$(az identity show --resource-group "${RESOURCE_GROUP}" --name "${USER_ASSIGNED_IDENTITY_NAME}" --query 'clientId' -otsv)"
+ export USER_ASSIGNED_CLIENT_ID="$(az identity show --resource-group $RG  --name $USER_ASSIGNED_IDENTITY_NAME  --query 'clientId' -otsv)"
 
- az keyvault set-policy --name "${KEYVAULT_NAME}" --secret-permissions get --spn "${USER_ASSIGNED_CLIENT_ID}"
+ az keyvault set-policy --name $KEYVAULT_NAME  --secret-permissions get --spn $USER_ASSIGNED_CLIENT_ID 
  ````
 
 
@@ -211,7 +222,10 @@ First, connect to the cluster if not already connected
 
 The service account should exist in the frontend namespace, because it's the frontend service that will use that service account to get the credentials to connect to the (redis) backend service.
 
-First create the namespace
+> **_! Note:_** Instead of creating kubenetes manifest files, we will create them on the commandline like below. I a real life case, you would create manifest files and store them in a version control system, like git.
+
+
+First create the frontend namespace
 
 ````
 cat <<EOF | kubectl apply -f -
@@ -240,10 +254,10 @@ EOF
 
 ### Establish federated identity credential
 
-In this step we connect the service account with the user defined managed identity, using a federated credential.
+In this step we connect the Kubernetes service account with the user defined managed identity in Azure, using a federated credential.
 
 ````
-az identity federated-credential create --name ${FEDERATED_IDENTITY_CREDENTIAL_NAME} --identity-name ${USER_ASSIGNED_IDENTITY_NAME} --resource-group ${RESOURCE_GROUP} --issuer ${AKS_OIDC_ISSUER} --subject system:serviceaccount:${FRONTEND_NAMESPACE}:${SERVICE_ACCOUNT_NAME}
+  az identity federated-credential create --name ${FEDERATED_IDENTITY_CREDENTIAL_NAME} --identity-name ${USER_ASSIGNED_IDENTITY_NAME} --resource-group ${RESOURCE_GROUP} --issuer ${AKS_OIDC_ISSUER} --subject system:serviceaccount:${FRONTEND_NAMESPACE}:${SERVICE_ACCOUNT_NAME}
 ````
 
 ### Build the application
@@ -251,19 +265,25 @@ az identity federated-credential create --name ${FEDERATED_IDENTITY_CREDENTIAL_N
 Now its time to build the application. In order to do so, first clone the applications repository:
 
 ````
-git clone git@github.com:pelithne/azure-voting-app-redis.git
+git clone git@github.com:pelithne/azure-voting-app-workload-identity.git
 ````
-Then CD into the directory where the (python) application resides and issue the acr build command
 
-#### Note: if the ACR is private, the *acr build* command is not available. Instead the *docker build* command can be used.
+In order to push images, you may have to login to the registry first using your Azure AD identity: 
+````
+az acr login
+````
 
+
+Then run the following commands to build, tag and push your container image to the Azure Container Registry
 ````
 cd azure-voting-app-redis
 cd azure-vote 
-az acr build --image azure-vote:v1 --registry $ACRNAME .
+sudo docker build -t azure-vote-front:v1 .
+sudo docker tag azure-vote-front:v1 $ACRNAME.azurecr.io/azure-vote-front:v1
+sudo docker push $ACRNAME.azurecr.io/azure-vote-front:v1
 
 ````
-
+The string after ````:```` is the image tag. This can be used to manage versions of your app, but in this case we will only have one version. 
 
 
 ### Deploy the application
@@ -272,7 +292,6 @@ We want to create some separation between the frontend and backend, by deploying
 
 
 First, create the backend namespace
-
 
 ````
 cat <<EOF | kubectl apply -f -
@@ -285,12 +304,9 @@ metadata:
 EOF
 ````
 
-cd only neccesery if using yaml files
-````
-cd ..
-````
 
-Backend
+
+The create the Backend application, which is a Redis store which we will use as a "database". Notice how we inject a password to Redis using an environment variable (not best practice obviously, but for simplicity).
 ````
 cat <<EOF | kubectl apply -f -
 apiVersion: apps/v1
@@ -334,7 +350,18 @@ EOF
 ````
 
 
-Then create the frontend. In this case we already created the frontend namespace in an earlier step.
+Then create the frontend. We already created the frontend namespace in an earlier step, so ju go ahead and create the frontend app in the frontend namespace.
+
+A few things worh noting:
+
+````azure.workload.identity/use: "true"```` - This is a label that tells AKS that workload identity should be used
+
+````serviceAccountName: $SERVICE_ACCOUNT_NAME```` - Specifies that this resource is connected to the service account created earlier
+
+````image: $ACRNAME.azurecr.io/azure-vote:v1```` - The image with the application built in a previous step.
+
+````service.beta.kubernetes.io/azure-load-balancer-ipv4: $ILB_EXT_IP```` - This "hard codes" the IP address of the internal LB to match what was previously configured in App GW as backend.
+
 
 ````
 cat <<EOF | kubectl apply -f -
@@ -366,7 +393,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
       - name: azure-vote-front
-        image: pelithnepubacr.azurecr.io/azure-vote:v19
+        image: $ACRNAME.azurecr.io/azure-vote-front:v1
         ports:
         - containerPort: 80
         resources:
@@ -393,46 +420,105 @@ spec:
   - port: 80
   selector:
     app: azure-vote-front
-
 EOF
 ````
 
+### Validate the application
+To test if the application is working, you can navigate to the URL used before to reach the nginx test application. This time the request will be redirected to the Azure Vote frontend instead. If that works, it means that the Azure Vote frontend pod was able to fetch the secret from Azure Keyvault, and use it when connecting to the backend (Redis) service/pod.
+
+You can also verify in the application logs that the frontend was able to connect to the backend.
+
+To do that, you need to find the name of the pod:
+````
+kubectl get pods ---namespace frontend
+````
+This should give a result timilar to this
+````
+NAME                                READY   STATUS    RESTARTS        AGE
+azure-vote-front-85d6c66c4d-pgtw9   1/1     Running   29 (7m3s ago)   3h13m
+````
+
+Now you can read the logs of the application by running this command (but with YOUR pod name)
+````
+kubectl logs azure-vote-front-85d6c66c4d-pgtw9 --namespace frontend
+````
+
+You should be able to find a line like this:
+````
+Connecting to Redis... azure-vote-back.backend
+````
+And then a little later:
+````
+Connected to Redis!
+````
+
+
 
 ### Network policies
-The cluster is deployed using kubenet CNI, which means we have to use Calico Network Policies. 
+The cluster is deployed with Azure network policies. The Network policies can be used to control traffic between resources in Kubernetes.
+
+This first policy will prevent all traffic to the backend namespace. 
 
 ````
 cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
 metadata:
-  name: deny-backend-access2
+  namespace: backend
+  name: deny-from-other-namespaces
+spec:
+  podSelector:
+    matchLabels:
+  ingress:
+  - from:
+    - podSelector: {}
+EOF
+````
+
+Network policies are applied on new TCP connections, and because the frontend application has already created a persistent TCP connection with the backend it might have to be redeployed for the policy to hit. One way to do that is to simply delete the pod and let it recreate itself:
+
+First find the pod name
+````
+kubectl get pods --namespace frontend
+````
+This should give a result timilar to this
+````
+NAME                                READY   STATUS    RESTARTS        AGE
+azure-vote-front-85d6c66c4d-pgtw9   1/1     Running   29 (7m3s ago)   3h13m
+````
+
+Now delete the pod with the following command (but with YOUR pod name)
+
+````
+kubectl delete pod --namespace frontend azure-vote-front-85d6c66c4d-pgtw9
+````
+
+After the deletion has finished you should be able to se that the "AGE" of the pod has been reset.
+````
+kubectl get pods --namespace frontend
+
+NAME                                READY   STATUS    RESTARTS        AGE
+azure-vote-front-85d6c66c4d-9wtgd   1/1     Running   0               25s
+````
+
+You should also find that the frontend can no longer communicate with the backend and that when accessing the URL of the app, it will time out.
+
+
+Next we want to make sure that only our specific frontend can access the backend. We can use labels for this
+
+cat <<EOF | kubectl apply -f -
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: access-backend
   namespace: backend
 spec:
   podSelector:
     matchLabels:
       app: azure-vote-back
   ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: frontend
-    ports: []
-EOF
-````
-
-
-
-
-
-
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: default-deny
-  namespace: backend
-spec:
-  podSelector:
-     matchLabels: {}
+    - from:
+      - podSelector:
+          matchLabels:
+            app: azure-vote-front
 EOF
