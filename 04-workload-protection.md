@@ -164,7 +164,7 @@ Now, you should have an infrastucture that looks like this:
 
  ### Add a secret to Azure Keyvault
 
- ### NOTE: Becauuse the keyvault is isolated in a VNET, you need to access it from the jumphost. Please log in to the jump host, and set a few environment variables (or load all environment variables you stored in a file):
+ ### NOTE: Because the keyvault is isolated in a VNET, you need to access it from the jumphost. Please log in to the jump host, and set a few environment variables (or load all environment variables you stored in a file):
 
  ````
 RG=AKS_Security_RG
@@ -265,7 +265,7 @@ In this step we connect the Kubernetes service account with the user defined man
 Now its time to build the application. In order to do so, first clone the applications repository:
 
 ````
-git clone git@github.com:pelithne/azure-voting-app-workload-identity.git
+git clone https://github.com/pelithne/az-vote-with-workload-identity.git
 ````
 
 In order to push images, you may have to login to the registry first using your Azure AD identity: 
@@ -276,7 +276,7 @@ az acr login
 
 Then run the following commands to build, tag and push your container image to the Azure Container Registry
 ````
-cd azure-voting-app-redis
+cd cd az-vote-with-workload-identity
 cd azure-vote 
 sudo docker build -t azure-vote-front:v1 .
 sudo docker tag azure-vote-front:v1 $ACR_NAME.azurecr.io/azure-vote-front:v1
@@ -464,19 +464,20 @@ This first policy will prevent all traffic to the backend namespace.
 
 ````
 cat <<EOF | kubectl apply -f -
-kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
 metadata:
+  name: deny-ingress-to-backend
   namespace: backend
-  name: deny-from-other-namespaces
 spec:
-  podSelector:
-    matchLabels:
+  podSelector: {}
   ingress:
   - from:
-    - podSelector: {}
+    - podSelector:
+        matchLabels: {}
 EOF
 ````
+
 
 Network policies are applied on new TCP connections, and because the frontend application has already created a persistent TCP connection with the backend it might have to be redeployed for the policy to hit. One way to do that is to simply delete the pod and let it recreate itself:
 
@@ -507,21 +508,47 @@ azure-vote-front-85d6c66c4d-9wtgd   1/1     Running   0               25s
 You should also find that the frontend can no longer communicate with the backend and that when accessing the URL of the app, it will time out.
 
 
-Next we want to make sure that only our specific frontend can access the backend. We can use labels for this
+Now apply a new policy that allows traffic into the backend namespace from pods that have the label ````app: azure-vote-front````
 
+````
 cat <<EOF | kubectl apply -f -
-kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
 metadata:
-  name: access-backend
-  namespace: backend
+  name: allow-from-frontend
+  namespace: backend # apply the policy in the backend namespace
 spec:
   podSelector:
     matchLabels:
-      app: azure-vote-back
+      app: azure-vote-back # select the redis pod
   ingress:
-    - from:
-      - podSelector:
-          matchLabels:
-            app: azure-vote-front
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: frontend # allow traffic from the frontend namespace
+      podSelector:
+        matchLabels:
+          app: azure-vote-front # allow traffic from the azure-vote-front pod
 EOF
+````
+
+Once again you have to recreate the pod, so that it can establish a connection to the backend service. Or you can simply wait for Kubernetes to attemt to recreate the frontend pod. 
+
+
+First find the pod name
+````
+kubectl get pods --namespace frontend
+````
+
+Then delete the pod (using the name of your pod)
+
+````
+kubectl delete pod --namespace frontend azure-vote-front-85d6c66c4d-pgtw9
+````
+
+
+This time, communication from azure-vote-front to azure-vote-back is allowed.
+
+
+
+
