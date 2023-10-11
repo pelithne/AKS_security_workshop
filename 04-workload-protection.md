@@ -164,7 +164,7 @@ Now, you should have an infrastucture that looks like this:
 
  ### Add a secret to Azure Keyvault
 
- Becauyse the keyvault is isolated in a VNET, you need to access it from the jumphost. Please log in to the jump host, and set a few environment variables (or load all environment variables you stored in a file):
+ ### NOTE: Becauuse the keyvault is isolated in a VNET, you need to access it from the jumphost. Please log in to the jump host, and set a few environment variables (or load all environment variables you stored in a file):
 
  ````
 RG=AKS_Security_RG
@@ -246,8 +246,8 @@ kind: ServiceAccount
 metadata:
   namespace: $FRONTEND_NAMESPACE
   annotations:
-    azure.workload.identity/client-id: ${USER_ASSIGNED_CLIENT_ID}
-  name: ${SERVICE_ACCOUNT_NAME}
+    azure.workload.identity/client-id: $USER_ASSIGNED_CLIENT_ID
+  name: $SERVICE_ACCOUNT_NAME
 EOF
 ````
 
@@ -257,7 +257,7 @@ EOF
 In this step we connect the Kubernetes service account with the user defined managed identity in Azure, using a federated credential.
 
 ````
-  az identity federated-credential create --name ${FEDERATED_IDENTITY_CREDENTIAL_NAME} --identity-name ${USER_ASSIGNED_IDENTITY_NAME} --resource-group ${RESOURCE_GROUP} --issuer ${AKS_OIDC_ISSUER} --subject system:serviceaccount:${FRONTEND_NAMESPACE}:${SERVICE_ACCOUNT_NAME}
+  az identity federated-credential create --name $FEDERATED_IDENTITY_CREDENTIAL_NAME --identity-name $USER_ASSIGNED_IDENTITY_NAME --resource-group $RESOURCE_GROUP --issuer $AKS_OIDC_ISSUER --subject system:serviceaccount:$FRONTEND_NAMESPACE:$SERVICE_ACCOUNT_NAME
 ````
 
 ### Build the application
@@ -279,8 +279,8 @@ Then run the following commands to build, tag and push your container image to t
 cd azure-voting-app-redis
 cd azure-vote 
 sudo docker build -t azure-vote-front:v1 .
-sudo docker tag azure-vote-front:v1 $ACRNAME.azurecr.io/azure-vote-front:v1
-sudo docker push $ACRNAME.azurecr.io/azure-vote-front:v1
+sudo docker tag azure-vote-front:v1 $ACR_NAME.azurecr.io/azure-vote-front:v1
+sudo docker push $ACR_NAME.azurecr.io/azure-vote-front:v1
 
 ````
 The string after ````:```` is the image tag. This can be used to manage versions of your app, but in this case we will only have one version. 
@@ -358,7 +358,7 @@ A few things worh noting:
 
 ````serviceAccountName: $SERVICE_ACCOUNT_NAME```` - Specifies that this resource is connected to the service account created earlier
 
-````image: $ACRNAME.azurecr.io/azure-vote:v1```` - The image with the application built in a previous step.
+````image: $ACR_NAME.azurecr.io/azure-vote:v1```` - The image with the application built in a previous step.
 
 ````service.beta.kubernetes.io/azure-load-balancer-ipv4: $ILB_EXT_IP```` - This "hard codes" the IP address of the internal LB to match what was previously configured in App GW as backend.
 
@@ -393,7 +393,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
       - name: azure-vote-front
-        image: $ACRNAME.azurecr.io/azure-vote-front:v1
+        image: $ACR_NAME.azurecr.io/azure-vote-front:v1
         ports:
         - containerPort: 80
         resources:
@@ -414,6 +414,9 @@ kind: Service
 metadata:
   name: azure-vote-front
   namespace: $FRONTEND_NAMESPACE
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "loadbalancer-subnet"
 spec:
   type: LoadBalancer
   ports:
