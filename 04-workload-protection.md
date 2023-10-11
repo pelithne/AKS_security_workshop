@@ -60,6 +60,7 @@ The variable should contain the Issuer URL similar to the following:
 
 Create the Azure Keyvault instance. When creating the Keyvault, use "deny as a default" action for the network access policy, which means that only the specified IP addresses or virtual networks can access the key vault.
 
+Your bastion host will be allowed, so use that one when you interact with Keyvault later.
 
 ````bash
 az keyvault create -n $KEYVAULT_NAME -g $RG -l $LOCATION --default-action deny
@@ -180,7 +181,7 @@ KEYVAULT_SECRET_NAME="redissecret"
 AKS_CLUSTER_NAME=private-aks
  ````
 
-Create a secret in the keyvault. This is the secret that will be used by the frontend application to connect to the (redis) backend.
+Now create a secret in the keyvault. This is the secret that will be used by the frontend application to connect to the (redis) backend.
 
  ````
  az keyvault secret set --vault-name $KEYVAULT_NAME --name $KEYVAULT_SECRET_NAME --value 'redispassword'
@@ -257,7 +258,7 @@ EOF
 In this step we connect the Kubernetes service account with the user defined managed identity in Azure, using a federated credential.
 
 ````
-  az identity federated-credential create --name $FEDERATED_IDENTITY_CREDENTIAL_NAME --identity-name $USER_ASSIGNED_IDENTITY_NAME --resource-group $RESOURCE_GROUP --issuer $AKS_OIDC_ISSUER --subject system:serviceaccount:$FRONTEND_NAMESPACE:$SERVICE_ACCOUNT_NAME
+  az identity federated-credential create --name $FEDERATED_IDENTITY_CREDENTIAL_NAME --identity-name $USER_ASSIGNED_IDENTITY_NAME --resource-group $RG --issuer $AKS_OIDC_ISSUER --subject system:serviceaccount:$FRONTEND_NAMESPACE:$SERVICE_ACCOUNT_NAME
 ````
 
 ### Build the application
@@ -292,6 +293,8 @@ We want to create some separation between the frontend and backend, by deploying
 
 
 First, create the backend namespace
+
+#### NOTE: instead of creating kubernetes manifest, we put them inline for convenience. Feel free to create yaml-manifests instead if you like
 
 ````
 cat <<EOF | kubectl apply -f -
