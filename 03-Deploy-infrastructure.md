@@ -790,7 +790,7 @@ az network private-dns record-set a create \
 
 ````bash
 az network private-dns record-set a create \
-  --name $ACR_NAME.westeurope.data \
+  --name $ACR_NAME.$LOCATION.data \
   --zone-name privatelink.azurecr.io \
   --resource-group $RG
 ````
