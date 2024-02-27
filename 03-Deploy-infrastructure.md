@@ -379,7 +379,7 @@ To secure your AKS outbound traffic, you need to follow these steps for a basic 
 az network firewall create \
     --resource-group $RG \
     --name $FW_NAME \
-    --location westeurope \
+    --location $LOCATION \
     --vnet-name $HUB_VNET_NAME \
     --enable-dns-proxy true
 
@@ -390,7 +390,7 @@ az network firewall create \
 az network public-ip create \
     --name fw-pip \
     --resource-group $RG \
-    --location westeurope \
+    --location $LOCATION \
     --allocation-method static \
     --sku standard
 
@@ -652,7 +652,7 @@ az acr create \
     --name $ACR_NAME \
     --sku Premium \
     --admin-enabled false \
-    --location westeurope \
+    --location $LOCATION \
     --allow-trusted-services false \
     --public-network-enabled false
 ````
@@ -1022,7 +1022,7 @@ In this chapter, you will set up an application gateway that can terminate TLS c
 
 
 ````bash
-az network public-ip create -g $RG -n AGPublicIPAddress --dns-name $STUDENT_NAME --allocation-method Static --sku Standard --location westeurope
+az network public-ip create -g $RG -n AGPublicIPAddress --dns-name $STUDENT_NAME --allocation-method Static --sku Standard --location $LOCATION
 ````
 2) Create WAF policy 
 
@@ -1037,7 +1037,7 @@ az network application-gateway waf-policy create --name ApplicationGatewayWAFPol
 ````bash
 az network application-gateway create \
   --name AppGateway \
-  --location westeurope \
+  --location $LOCATION \
   --resource-group $RG \
   --vnet-name $SPOKE_VNET_NAME \
   --subnet $APPGW_SUBNET_NAME \
