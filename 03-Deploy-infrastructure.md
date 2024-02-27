@@ -445,15 +445,17 @@ az network route-table create \
 
 8) Create a route to the internet via the Azure Firewall
 
-In order to create the route we need to obtain the private IP address of the Firewall.To get the private IP address of the Firewall, you need to run the following command and store the output in an environment variable.
+In order to create the route we need to obtain the private IP address of the Firewall.To get the private IP address of the Firewall, you need to run the following command:
 
 ````bash
- fw_private_ip=$(az network firewall show \
-    --resource-group $RG \
-    --name $FW_NAME \
-    --query 'ipConfigurations[0].privateIpAddress' \
-    --output tsv)
+az network firewall show --resource-group $RG --name $FW_NAME |grep  privateIPAddress
 ````
+
+Then store the output (the ip address) in an environment variable:
+````bash
+fw_private_ip=<IP Address from previous command>
+````
+
 To get the private IP address of the Firewall, you need to run the following command and store the output in an environment variable.
 ````bash
 az network route-table route create \
