@@ -880,7 +880,6 @@ Add the following content to the Dockerfile
 ````bash
 FROM nginx
 EXPOSE 80
-CMD [“nginx”, “-g”, “daemon off;”]
 ````
 Build the Docker image
 
