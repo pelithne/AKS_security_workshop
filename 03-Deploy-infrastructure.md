@@ -748,27 +748,35 @@ NETWORK_INTERFACE_ID=$(az network private-endpoint show \
  ```` 
 
 Fetch the container registry private IP address
-````bash
-REGISTRY_PRIVATE_IP=$(az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry'].privateIPAddress" -o tsv)
-````
-Fetch the data endpoint IP address of the container registry
-````bash
-DATA_ENDPOINT_PRIVATE_IP=$(az network nic show --ids $NETWORK_INTERFACE_ID --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry_data_westeurope'].privateIPAddress" -o tsv)
-````
 
-Fetch the FQDN associated with the registry and data endpoint
+Find the private IP addresses used for data and control of the Container Registry
 ````bash
-REGISTRY_FQDN=$(az network nic show \
-  --ids $NETWORK_INTERFACE_ID \
-  --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry'].privateLinkConnectionProperties.fqdns" \
-  --output tsv)
+az network nic show --ids $NETWORK_INTERFACE_ID |grep azurecr.io -B 7
 ````
-````bash
-DATA_ENDPOINT_FQDN=$(az network nic show \
-  --ids $NETWORK_INTERFACE_ID \
-  --query "ipConfigurations[?privateLinkConnectionProperties.requiredMemberName=='registry_data_westeurope'].privateLinkConnectionProperties.fqdns" \
-  --output tsv)
+In the output you should see two IP addresses, and their associated FQDNS. It should look similar to this:
+
 ````
+      "name": "privateEndpointIpConfig.9c4c0ee4-c187-4094-aede-fc0dabb70236",
+      "primary": true,
+      "privateIPAddress": "10.1.1.20",
+      "privateIPAddressVersion": "IPv4",
+      "privateIPAllocationMethod": "Dynamic",
+      "privateLinkConnectionProperties": {
+        "fqdns": [
+          "acrforakssecurity.westus2.data.azurecr.io"
+--
+      "name": "privateEndpointIpConfig.7ffb814c-aacc-4199-a07d-35f61df0ea1f",
+      "primary": false,
+      "privateIPAddress": "10.1.1.21",
+      "privateIPAddressVersion": "IPv4",
+      "privateIPAllocationMethod": "Dynamic",
+      "privateLinkConnectionProperties": {
+        "fqdns": [
+          "acrforakssecurity.azurecr.io"
+````
+The **privateIPAddress** and **fqdns** will be used in a later step (when creating DNS zones).
+
+
 8) Create DNS records in the private DNS zone
 
 ````bash
@@ -776,7 +784,7 @@ az network private-dns record-set a create \
   --name $ACR_NAME \
   --zone-name privatelink.azurecr.io \
   --resource-group $RG
-  ````
+````
 
 9) Specify registry region in data endpoint name
 
@@ -793,7 +801,7 @@ az network private-dns record-set a add-record \
   --record-set-name $ACR_NAME \
   --zone-name privatelink.azurecr.io \
   --resource-group $RG \
-  --ipv4-address $REGISTRY_PRIVATE_IP
+  --ipv4-address <IP address associated with FQDN "$ACR_NAME.azurecr.io">
 
 ````
 
@@ -801,10 +809,10 @@ az network private-dns record-set a add-record \
 
 ````bash
 az network private-dns record-set a add-record \
-  --record-set-name $ACR_NAME.westeurope.data \
+  --record-set-name $ACR_NAME.$LOCATION.data \
   --zone-name privatelink.azurecr.io \
   --resource-group $RG \
-  --ipv4-address $DATA_ENDPOINT_PRIVATE_IP
+  --ipv4-address <IP address assicoated with FQDN "$ACR_NAME.$LOCATION.data.azurecr.io">
 ````
 12) Test the connection to ACR from the Jumpbox
 
