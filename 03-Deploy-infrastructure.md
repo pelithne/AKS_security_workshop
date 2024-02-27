@@ -32,7 +32,7 @@ STUDENT_NAME=<WRITE YOUR STUDENT NAME HERE>
 ### 3.1.2 Create the Resource group for the resources
 
 ````bash
-az group create --name $RG --location westeurope
+az group create --name $RG --location $LOCATION
 ````
 
 ### 3.1.3 Create Network Security Groups (NSG) and Virtual Network (Vnet) for the Hub.
