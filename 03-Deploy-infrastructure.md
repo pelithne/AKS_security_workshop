@@ -348,7 +348,7 @@ az network bastion create \
     --name bastionhost \
     --public-ip-address Bastion-PIP \
     --vnet-name $HUB_VNET_NAME \
-    --location westeurope
+    --location $LOCATION
 ````
 5) Connect to VM using the portal:
 
