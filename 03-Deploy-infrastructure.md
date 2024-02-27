@@ -333,12 +333,15 @@ az vm create \
     --public-ip-address "" \
     --nsg ""  
   
-````
-3) The following script will deploy, Azure CLI, Docker and kubelet onto the Virtual machine.
+#````
+#3) The following script (located in this repository) will deploy Azure CLI, Docker and kubelet onto the Virtual machine.
+#
+#````bash
+#az vm extension set --resource-group $RG --vm-name $JUMPBOX_VM_NAME --name customScript --publisher Microsoft.Azure.Extensions --version 2.0 --settings "{\"fileUris\": 
+# [\"https://raw.githubusercontent.com/pelithne/AKS_security_workshop/main/install.sh\"]}" --protected-settings "{\"commandToExecute\": \"sh install.sh\"}"
+#````
 
-````bash
-az vm extension set --resource-group $RG --vm-name $JUMPBOX_VM_NAME --name customScript --publisher Microsoft.Azure.Extensions --version 2.0 --settings "{\"fileUris\":[\"https://raw.githubusercontent.com/abengtss-max/simple_aks/main/install.sh\"]}" --protected-settings "{\"commandToExecute\": \"sh install.sh\"}"
-````
+
 4) Create the bastion host in hub vnet and associate it to the public IP.
 > **_! Note:_**  Azure Bastion service requires a dedicated subnet named **AzureBastionSubnet** to provide secure and seamless RDP/SSH connectivity to your virtual machines. When you deploy Azure Bastion service, it will automatically create this subnet for you, if it does not exist in the target virtual network. However, if the subnet already exists, it must meet the minimum size of **/26** or larger, otherwise the deployment will fail.
 
@@ -606,11 +609,29 @@ In this section we will verify that we are able to connect to the AKS cluster fr
 
 5) Enter the **credentials** for the Jumpbox VM and verify that you can log in successfully.
 
-6) Once successfully logged in to the jumbox **login to Azure** in order to obtain AKS credentials.
+6) Once successfully logged in to the jumbox you need to install a few tools
+````bash
+# Update the package index and install the prerequisites for Azure CLI
+sudo apt-get update && apt-get install ca-certificates curl apt-transport-https lsb-release gnupg
+# Download and install the Microsoft signing key
+curl -sL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null
+# Add the Azure CLI repository to your sources list
+AZ_REPO=$(lsb_release -cs) && echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" | tee /etc/apt/sources.list.d/azure-cli.list
+# Install Azure CLI
+sudo apt update && 
+sudo apt install azure-cli
+# Install Docker
+sudo apt install docker.io -y
+# Install AKS CLI
+sudo az aks install-cli
+````
+
+  
+8) Now, **login to Azure** in order to obtain AKS credentials.
 
 ````bash
-sudo az login
-sudo az account set --subscription <SUBSCRIPTION ID>
+az login
+az account set --subscription <SUBSCRIPTION ID>
 ````
 > **_! Note:_**
 To check the current subscription, run the command: **az account show**
@@ -619,12 +640,12 @@ To change the subscription, run the command: **az account set --subscription <SU
 7) Download the AKS credentials onto the jumpbox.
 
 ````bash
-sudo az aks get-credentials --resource-group $RG --name $AKS_CLUSTER_NAME
+az aks get-credentials --resource-group $RG --name $AKS_CLUSTER_NAME
 ````
 8) Ensure you can list resources in AKS.
 
 ````bash
-sudo kubectl get nodes
+kubectl get nodes
 ````
 
 The following output shows the result of running the command kubectl get nodes on with kubectl CLI.
