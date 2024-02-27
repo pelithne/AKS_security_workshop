@@ -873,7 +873,6 @@ acraksbl.privatelink.azurecr.io. 1800 IN A10.1.2.5
 8. Create a Dockerfile, build the docker image, authenticate towards ACR and push the image to the container registry.
 
 ````bash
-touch Dockerfile
 vim Dockerfile
 ````
 Add the following content to the Dockerfile
@@ -881,7 +880,7 @@ Add the following content to the Dockerfile
 ````bash
 FROM nginx
 EXPOSE 80
-CMD [“nginx”, “-g”, “daemon off;”
+CMD [“nginx”, “-g”, “daemon off;”]
 ````
 Build the Docker image
 
