@@ -623,7 +623,7 @@ sudo az aks install-cli
 ````
 
   
-8) Now, **login to Azure** in order to obtain AKS credentials.
+7) Now, **login to Azure** in order to obtain AKS credentials.
 
 ````bash
 az login
@@ -633,12 +633,12 @@ az account set --subscription <SUBSCRIPTION ID>
 To check the current subscription, run the command: **az account show**
 To change the subscription, run the command: **az account set --subscription <SUBSCRIPTION ID>, where <SUBSCRIPTION ID>** the ID of the desired subscription. You can find the subscription ID by running the command: **az account list --output table**
 
-7) Download the AKS credentials onto the jumpbox.
+8) Download the AKS credentials onto the jumpbox.
 
 ````bash
 az aks get-credentials --resource-group $RG --name $AKS_CLUSTER_NAME
 ````
-8) Ensure you can list resources in AKS.
+9) Ensure you can list resources in AKS.
 
 ````bash
 kubectl get nodes
@@ -653,7 +653,7 @@ aks-nodepool1-33590162-vmss000000   Ready    agent   11h   v1.26.6
 aks-nodepool1-33590162-vmss000001   Ready    agent   11h   v1.26.6
 aks-nodepool1-33590162-vmss000002   Ready    agent   11h   v1.26.6
 ````
-9) log out from the Jumpbox host.
+10) log out from the Jumpbox host.
 
 Congratulations! You have completed the steps to deploy a private AKS cluster and configure its network settings. You have assigned a user assigned identity to the cluster that has the required permissions to modify the user-defined routing table and load balancer subnet. You have also created a virtual network link between the hub virtual network and the private DNS zone of the cluster. This enables the jumpbox to resolve the private API server of the cluster and access it for management and maintenance purposes.
 
