@@ -841,7 +841,7 @@ sudo az account set --subscription <SUBSCRIPTION ID>
 
 List your ACR in your subscription and note down the ACR name.
 ````bash
-sudo az acr list -o table
+az acr list -o table
 ````
 ````bash
 dig <REGISTRY NAME>.azurecr.io
