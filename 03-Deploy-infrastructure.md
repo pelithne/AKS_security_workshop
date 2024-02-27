@@ -919,9 +919,9 @@ Create an alias of the image
 ````bash
 sudo docker tag nginx <CONTAINER REGISTRY NAME>.azurecr.io/nginx
 ````
-Authenticate to ACR.
+Authenticate to ACR. Use "--expose-token" to access token instead of automatically logging in through Docker CLI.
 ````bash
-sudo az acr login --name <CONTAINER REGISTRY NAME>
+az acr login --name <CONTAINER REGISTRY NAME> --expose-token
 ````
 Upload the docker image to the ACR repository.
 ````bash
