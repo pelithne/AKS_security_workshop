@@ -1020,12 +1020,12 @@ sudo kubectl create -f internal-app-service.yaml
 Verify that your service object is created and associated with the Pod that you have created, also ensure that you have recieved an external IP, which should be a private IP address range from the load balancer subnet.
 
 ````bash
-sudo kubectl get svc -o wide
+kubectl get svc -o wide
 ````
 Example output:
 
 ````bash
-azureuser@Jumpbox-VM:~$ sudo kubectl get svc -o wide
+azureuser@Jumpbox-VM:~$ kubectl get svc -o wide
 NAME                        TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)        AGE   SELECTOR
 internal-test-app-service   LoadBalancer   10.0.252.53   10.1.3.4      80:30161/TCP   39s   app=internal-test-app
 kubernetes                  ClusterIP      10.0.0.1      <none>        443/TCP        43h   <none>
